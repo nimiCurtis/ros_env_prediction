@@ -7,9 +7,13 @@
   <arg name="record_cameras" default="true" />
 
 
- <node pkg="rosbag" type="record" name="rosbag_record_cam"
-       args="record -o /home/zion/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/bag /zedm/zed_node/left/image_rect_gray "
-       if="$(arg record_cameras)" />
+<node pkg="rosbag" type="record" name="rosbag_record_cam"
+      args="record -o /home/zion/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/bag /zedm/zed_node/left/image_rect_gray /zedm/zed_node/imu/data "
+      if="$(arg record_cameras)" />
+  
+<!-- <node pkg="rosbag" type="record" name="rosbag_record_cam"
+      args="record -o /home/zion/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/bag /zedm/zed_node/left/image_rect_gray "
+      if="$(arg record_cameras)" /> -->
 
 
  <!-- <node pkg="rosbag" type="record" name="rosbag_record_diag"
