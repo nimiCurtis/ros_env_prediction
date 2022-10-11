@@ -5,7 +5,8 @@
 
 <launch>
   <arg name="bag_file" value="/home/zion/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/bag"     />
-  <arg name="camera_topic" value="/zedm/zed_node/left/image_rect_gray"  /> <!-- need to change -->
+  <arg name="camera_topic" value="/zedm/zed_node/left/image_rect_gray"  /> <!-- need to add and change -->
+  <arg name="imu_topic" value="/zedm/zed_node/imu/data" />
 
   
   <node pkg="rosbag" type="record" name="rosbag_record_cam" args="record -o $(arg bag_file) $(arg camera_topic) /tf" >
