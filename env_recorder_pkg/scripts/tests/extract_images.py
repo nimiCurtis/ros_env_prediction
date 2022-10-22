@@ -8,15 +8,6 @@ from cv_bridge import CvBridge
 """Extract images from a rosbag.
 """
 
-import os
-import argparse
-
-import cv2
-
-import rosbag
-from sensor_msgs.msg import Image
-from cv_bridge import CvBridge
-
 def main():
     """Extract a folder of images from a rosbag.
     """
