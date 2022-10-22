@@ -1,0 +1,6 @@
+
+rec_imu : True
+rec_rgb : False
+rec_depth : True
+rec_tf : True
+rec_confidence: False
