@@ -1,5 +1,0 @@
-rec_imu: true
-rec_rgb: false
-rec_depth: true
-rec_tf: true
-rec_confidence: false
