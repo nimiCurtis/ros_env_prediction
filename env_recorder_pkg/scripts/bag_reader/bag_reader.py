@@ -41,7 +41,8 @@ class READER():
         
         topic_split = topic.split('/')
         
-        if 'left' in topic_split: # change it to rgb , and add depth init
+        if 'rgb' in topic_split: # change it to rgb , and add depth init
+            dir = os.path.join(self.bag_read.datafolder,'rgb')
             if not os.path.exists(dir):
                 os.mkdir(dir)
             
@@ -49,24 +50,41 @@ class READER():
             self.rgb_df = pd.read_csv(rgb_tmp_file)
             self.rgb_df.drop('data',inplace = True , axis =1)
             
-            self.rgb_df['frame_path'] = self.extract_images(topic, dir)
+            self.rgb_df['frame_path'] = self.extract_images(topic, dir, "rgb")
             self.rgb_df.to_csv(rgb_tmp_file)
         
         if 'depth' in topic_split:
             dir = os.path.join(self.bag_read.datafolder,'depth')
+            dir_vals = os.path.join(dir,'vals')
             if not os.path.exists(dir):
                 os.mkdir(dir)
+                if not os.path.exists(dir_vals):
+                    os.mkdir(dir_vals) 
             
             depth_tmp_file = self.bag_read.message_by_topic(topic)
             self.depth_df = pd.read_csv(depth_tmp_file)
             self.depth_df.drop('data',inplace = True , axis =1)
             
-            self.depth_df['frame_path'] = self.extract_images(topic, dir)
+            self.depth_df['frame_path'] = self.extract_images(topic, dir, "depth")
             self.depth_df.to_csv(depth_tmp_file)
             
+        if 'confidence' in topic_split:
+            dir = os.path.join(self.bag_read.datafolder,'confidence')
+            dir_vals = os.path.join(dir,'vals')
+            if not os.path.exists(dir):
+                os.mkdir(dir)
+                if not os.path.exists(dir_vals):
+                    os.mkdir(dir_vals) 
+            
+            confidence_tmp_file = self.bag_read.message_by_topic(topic)
+            self.confidence_df = pd.read_csv(confidence_tmp_file)
+            self.confidence_df.drop('data',inplace = True , axis =1)
+            
+            self.confidence_df['frame_path'] = self.extract_images(topic, dir, "confidence")
+            self.confidence_df.to_csv(confidence_tmp_file)
 
 
-    def extract_images(self, topic, dir):
+    def extract_images(self, topic, dir, img_type):
 
             bag = rosbag.Bag(self.bag_file, "r")
             bridge = CvBridge()
@@ -79,15 +97,25 @@ class READER():
                     print(e)
                 
                 frame_path = os.path.join(dir, "frame%06i.jpg" % count)
+                if img_type == "depth":
+                    depth_array = np.array(cv_img, dtype=np.float32)
+                    numpy_path = os.path.join(dir, "vals/np_values%06i.npy" % count)
+                    np.save(numpy_path, depth_array)
                 
+                if img_type == "confidence":
+                    confidence_array = np.array(cv_img, dtype=np.float32)
+                    numpy_path = os.path.join(dir, "vals/np_values%06i.npy" % count)
+                    np.save(numpy_path, confidence_array)
+                    
                 path_list.append(frame_path)
                 cv2.imwrite(frame_path, cv_img)
                 
-                print ("Wrote image %i" % count)
+                
 
                 count += 1
 
             bag.close()
+            print("images saved")
             return path_list
         
     def get_synced_df(self):
@@ -98,6 +126,6 @@ class READER():
     
 
 if __name__ == '__main__':
-    read = READER('/home/zion/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-10-22-17-45-48.bag')
+    read = READER('/home/zion/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-10-24-00-07-50.bag')
     read.read()
     a=1

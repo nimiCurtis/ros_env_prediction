@@ -12,29 +12,24 @@ class RosbagRecord:
     def __init__(self, cfg):
         
         topics_list = []
-        tf_topic = "/tf"
-        imu_topic = "/zedm/zed_node/imu/data"
-        rgb_topic = "/zedm/zed_node/rgb/image_rect_color"
-        depth_topic = "/zedm/zed_node/depth/depth_registered"
-        confidence_topic = "/zedm/zed_node/confidence/confidence_map"
         
-        if cfg.rec_imu:
-            topics_list.append(imu_topic)
+        if cfg.recording.rec_imu:
+            topics_list.append(cfg.topics.imu)
         
-        if cfg.rec_rgb:
-            topics_list.append(rgb_topic)
+        if cfg.recording.rec_rgb:
+            topics_list.append(cfg.topics.rgb)
         
-        if cfg.rec_tf:
-            topics_list.append(tf_topic)
+        if cfg.recording.rec_tf:
+            topics_list.append(cfg.topics.tf)
         
-        if cfg.rec_confidence:
-            topics_list.append(confidence_topic)
+        if cfg.recording.rec_confidence:
+            topics_list.append(cfg.topics.confidence)
         
-        if cfg.rec_depth:
-            topics_list.append(depth_topic)
+        if cfg.recording.rec_depth:
+            topics_list.append(cfg.topics.depth)
 
-        self.record_script = '/home/zion/catkin_ws/src/ros_env_prediction/env_recorder_pkg/scripts/brings_up/record_zed.sh '
-        self.record_folder = '/home/zion/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag'
+        self.record_script = cfg.recording.script
+        self.record_folder = cfg.recording.bag_folder
         
         rospy.on_shutdown(self.stop_recording_handler)
 
@@ -43,7 +38,7 @@ class RosbagRecord:
         # self.p1 = subprocess.Popen(command1, stdin=subprocess.PIPE, shell=True,
         #                             executable='/bin/bash')
         
-        command = "source " + self.record_script + " ".join(topics_list) #" ".join(topics_list)
+        command = "source " + self.record_script +" "+  " ".join(topics_list) #" ".join(topics_list)
         self.p = subprocess.Popen(command, stdin=subprocess.PIPE, cwd=self.record_folder,   shell=True,
                                     executable='/bin/bash')
         
