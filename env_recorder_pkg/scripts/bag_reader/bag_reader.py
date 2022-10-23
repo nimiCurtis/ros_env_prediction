@@ -1,7 +1,6 @@
 ############## 
 ## TO DO ##
-# get synced df
-# viewer ?
+# save image depend on the type
 ##############
 
 
@@ -16,7 +15,7 @@ import argparse
 import cv2
 import rosbag
 from sensor_msgs.msg import Image
-from cv_bridge import CvBridge
+from cv_bridge import CvBridge, CvBridgeError
 
 
 
@@ -74,7 +73,11 @@ class READER():
             count = 0
             path_list = []
             for topic, msg, t in bag.read_messages(topics=topic):
-                cv_img = bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough") # check desired encoding
+                try:
+                    cv_img = bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
+                except CvBridgeError as e:
+                    print(e)
+                
                 frame_path = os.path.join(dir, "frame%06i.jpg" % count)
                 
                 path_list.append(frame_path)
