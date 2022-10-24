@@ -28,11 +28,17 @@ class READER():
         self.bag_read = bagreader(bag_file)
         
         self.metadata_file = os.path.join(self.bag_read.datafolder, "metadata.json")    
+        self.MetaData = {}
         if os.path.exists(self.metadata_file):
             with open(self.metadata_file,"r") as json_file:
                 self.MetaData = json.load(json_file)
-        else:
-            self.MetaData = {"rgb":"","depth":"","tf":"", "imu":"","confidence":""}
+        
+        self.rgb_df = pd.DataFrame()
+        self.depth_df = pd.DataFrame()
+        self.imu_df = pd.DataFrame()
+        self.confidence_df = pd.DataFrame()
+
+        self.frame_count = 0
 
     def read(self):
         
@@ -53,75 +59,27 @@ class READER():
         if not os.path.exists(self.metadata_file):
             with open(self.metadata_file, "w") as json_file:
                 json.dump(self.MetaData, json_file, indent=3)
-        else:
-            pass
+
 
     def init_image_df(self,topic):
         
         topic_split = topic.split('/')
         
-        if 'rgb' in topic_split: # change it to rgb , and add depth init
-            if os.path.exists(self.metadata_file):
-                self.rgb_df = pd.read_csv(self.MetaData["rgb"])
-            else:
-
-                dir = os.path.join(self.bag_read.datafolder,'rgb')
-                if not os.path.exists(dir):
-                    os.mkdir(dir)
-                
-                rgb_tmp_file = self.bag_read.message_by_topic(topic)
-                self.rgb_df = pd.read_csv(rgb_tmp_file)
-                self.rgb_df.drop('data',inplace = True , axis =1)
-                
-                self.rgb_df['frame_path'], _ = self.extract_images(topic, dir, "rgb")
-                self.rgb_df.to_csv(rgb_tmp_file)
-                self.MetaData["rgb"] = rgb_tmp_file
+        if 'rgb' in topic_split: 
+            self.rgb_df = self.set_image_df(topic,'rgb')
         
         if 'depth' in topic_split:
-            if os.path.exists(self.metadata_file):
-                self.depth_df = pd.read_csv(self.MetaData["depth"])
-            else:
-
-                dir = os.path.join(self.bag_read.datafolder,'depth')
-                dir_vals = os.path.join(dir,'vals')
-                if not os.path.exists(dir):
-                    os.mkdir(dir)
-                    if not os.path.exists(dir_vals):
-                        os.mkdir(dir_vals) 
-                
-                depth_tmp_file = self.bag_read.message_by_topic(topic)
-                self.depth_df = pd.read_csv(depth_tmp_file)
-                self.depth_df.drop('data',inplace = True , axis =1)
-                
-                self.depth_df['frame_path'], self.depth_df['np_path'] = self.extract_images(topic, dir, "depth")
-                self.depth_df.to_csv(depth_tmp_file)
-                self.MetaData["depth"] = depth_tmp_file
+            self.depth_df = self.set_image_df(topic,'depth')
             
         if 'confidence' in topic_split:
-            if os.path.exists(self.metadata_file):
-                self.confidence_df = pd.read_csv(self.MetaData["confidence"])
-            else:
-                dir = os.path.join(self.bag_read.datafolder,'confidence')
-                dir_vals = os.path.join(dir,'vals')
-                if not os.path.exists(dir):
-                    os.mkdir(dir)
-                    if not os.path.exists(dir_vals):
-                        os.mkdir(dir_vals) 
-                
-                confidence_tmp_file = self.bag_read.message_by_topic(topic)
-                self.confidence_df = pd.read_csv(confidence_tmp_file)
-                self.confidence_df.drop('data',inplace = True , axis =1)
+            self.confidence_df = self.set_image_df(topic,'confidence')
             
-                self.confidence_df['frame_path'], self.confidence_df['np_path'] = self.extract_images(topic, dir, "confidence")
-                self.confidence_df.to_csv(confidence_tmp_file)
-                self.MetaData["confidence"] = confidence_tmp_file
 
 
     def extract_images(self, topic, dir, img_type):
 
             bag = rosbag.Bag(self.bag_file, "r")
             bridge = CvBridge()
-            count = 0
             frame_path_list = []
             numpy_path_list = []
             for topic, msg, t in bag.read_messages(topics=topic):
@@ -130,23 +88,15 @@ class READER():
                 except CvBridgeError as e:
                     print(e)
                 
-                frame_path = os.path.join(dir, "frame%06i.jpg" % count)
-                if img_type == "depth":
-                    depth_array = np.array(cv_img, dtype=np.float32)
-                    numpy_path = os.path.join(dir, "vals/np_values%06i.npy" % count)
-                    np.save(numpy_path, depth_array)
-                    numpy_path_list.append(numpy_path)
-                
-                if img_type == "confidence":
-                    confidence_array = np.array(cv_img, dtype=np.float32)
-                    numpy_path = os.path.join(dir, "vals/np_values%06i.npy" % count)
-                    np.save(numpy_path, confidence_array)
-                    numpy_path_list.append(numpy_path)
+                frame_path = os.path.join(dir, "frame%06i.jpg" % self.frame_count)
+
+                if (img_type != "rgb"):
+                    numpy_path_list.append(self.save_np_data(cv_img,dir))
 
                 frame_path_list.append(frame_path)
                 cv2.imwrite(frame_path, cv_img)
 
-                count += 1
+                self.frame_count += 1
 
             bag.close()
             print("images saved")
@@ -157,6 +107,35 @@ class READER():
         
         pass 
     
+    def set_image_df(self,topic, image_type):
+        if os.path.exists(self.metadata_file):
+            df = pd.read_csv(self.MetaData[image_type])
+        else:
+            dir = os.path.join(self.bag_read.datafolder,image_type)
+            dir_vals = os.path.join(dir,'vals')
+            if not os.path.exists(dir):
+                os.mkdir(dir)
+                if not os.path.exists(dir_vals) and image_type!='rgb':
+                    os.mkdir(dir_vals) 
+            
+            tmp_file = self.bag_read.message_by_topic(topic)
+            df = pd.read_csv(tmp_file)
+            df.drop('data',inplace = True , axis =1)
+            if image_type == 'rgb':
+                df['frame_path'], _ = self.extract_images(topic, dir, image_type)
+            else:
+                df['frame_path'], df['np_path'] = self.extract_images(topic, dir, image_type)
+            df.to_csv(tmp_file)
+            self.MetaData[image_type] = tmp_file
+
+            return df
+        
+    def save_np_data(self,img,dir, d_type=np.float32):
+            img_array = np.array(img, dtype=d_type)
+            numpy_path = os.path.join(dir, "vals/np_values%06i.npy" % self.frame_count)
+            np.save(numpy_path, img_array)
+            return numpy_path
+            
     
 
 if __name__ == '__main__':
