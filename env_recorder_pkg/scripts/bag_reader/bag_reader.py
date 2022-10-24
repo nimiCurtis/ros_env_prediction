@@ -65,14 +65,15 @@ class READER():
         
         topic_split = topic.split('/')
         
-        if 'rgb' in topic_split: 
-            self.rgb_df = self.set_image_df(topic,'rgb')
-        
+
         if 'depth' in topic_split:
             self.depth_df = self.set_image_df(topic,'depth')
+
+        # if 'rgb' in topic_split: 
+        #     self.rgb_df = self.set_image_df(topic,'rgb')
             
-        if 'confidence' in topic_split:
-            self.confidence_df = self.set_image_df(topic,'confidence')
+        # if 'confidence' in topic_split:
+        #     self.confidence_df = self.set_image_df(topic,'confidence')
             
 
 
@@ -84,7 +85,7 @@ class READER():
             numpy_path_list = []
             for topic, msg, t in bag.read_messages(topics=topic):
                 try:
-                    cv_img = bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
+                    cv_img = bridge.imgmsg_to_cv2(msg, desired_encoding="32FC1")
                 except CvBridgeError as e:
                     print(e)
                 
