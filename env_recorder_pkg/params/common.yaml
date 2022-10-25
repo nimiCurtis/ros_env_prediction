@@ -3,17 +3,17 @@
 ---
 
 # Dynamic parameters cannot have a namespace
-brightness:                 4                                   # Dynamic
-contrast:                   4                                   # Dynamic
-hue:                        0                                   # Dynamic
-saturation:                 4                                   # Dynamic
-sharpness:                  4                                   # Dynamic
-gamma:                      8                                   # Dynamic - Requires SDK >=v3.1
-auto_exposure_gain:         true                                # Dynamic
-gain:                       100                                 # Dynamic - works only if `auto_exposure_gain` is false
-exposure:                   100                                 # Dynamic - works only if `auto_exposure_gain` is false
-auto_whitebalance:          true                                # Dynamic
-whitebalance_temperature:   42                                  # Dynamic - works only if `auto_whitebalance` is false
+brightness:                 4                                   # Dynamic | Defines the brightness control. Affected value should be between 0 and 8.
+contrast:                   4                                   # Dynamic | Defines the contrast control. Affected value should be between 0 and 8.
+hue:                        0                                   # Dynamic | Defines the hue control. Affected value should be between 0 and 11.
+saturation:                 4                                   # Dynamic | Defines the saturation control. Affected value should be between 0 and 8.
+sharpness:                  4                                   # Dynamic | Defines the digital sharpening control. Affected value should be between 0 and 8.
+gamma:                      8                                   # Dynamic - Requires SDK >=v3.1 | Defines the ISP gamma control. Affected value should be between 1 and 9.
+auto_exposure_gain:         true                                # Dynamic 
+gain:                       100                                 # Dynamic - works only if `auto_exposure_gain` is false | Defines the gain control. Affected value should be between 0 and 100 for manual control.
+exposure:                   100                                 # Dynamic - works only if `auto_exposure_gain` is false | Defines the exposure control. Affected value should be between 0 and 100 for manual control.
+auto_whitebalance:          true                                # Dynamic 
+whitebalance_temperature:   42                                  # Dynamic - works only if `auto_whitebalance` is false | Defines the color temperature value. Affected value should be between 28 and 65
 depth_confidence:           30                                  # Dynamic
 depth_texture_conf:         100                                 # Dynamic
 pub_frame_rate:             15.0                                # Dynamic - frequency of publishing of video and depth data
@@ -39,7 +39,8 @@ video:
 depth:
     quality:                    3                               # '0': NONE, '1': PERFORMANCE, '2': QUALITY, '3': ULTRA, '4': NEURAL
     sensing_mode:               0                               # '0': STANDARD, '1': FILL (not use FILL for robotic applications)
-    depth_stabilization:        1                               # `0`: disabled, `1`: enabled
+    depth_stabilization:        1                               # `0`: disabled, `1`: enabled | Regions of the generated depth map can oscillate from one frame to another. These oscillations result from a lack of texture (too homogeneous) on an object and by image noise.
+                                                                #   This parameter enables a stabilization filter that reduces these oscillations.
     openni_depth_mode:          true                           # 'false': 32bit float meters, 'true': 16bit uchar millimeters
     depth_downsample_factor:    0.5                             # Resample factor for depth data matrices [0.01,1.0] The SDK works with native data sizes, but publishes rescaled matrices (depth map, point cloud, ...)
 
