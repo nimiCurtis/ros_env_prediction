@@ -1,4 +1,4 @@
-#!/usr/bin/env /home/nimibot/py3.7_ws/py3.7_venv/bin/python
+#!/usr/bin/env /home/zion/py3.7_ws/py3.7_venv/bin/python
 
 # Libraries
 import hydra
@@ -34,6 +34,8 @@ class RosbagRecord:
         if cfg.recording.rec_confidence:                # record confidence
             topics_list.append(cfg.topics.confidence)
         
+        if cfg.recording.rec_disparity:
+            topics_list.append(cfg.topics.disparity)
         ## add disparity
 
         self.record_script = cfg.recording.script           # use bash script from path in config
