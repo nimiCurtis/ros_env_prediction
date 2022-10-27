@@ -69,11 +69,11 @@ class READER():
         if 'depth' in topic_split:
             self.depth_df = self.set_image_df(topic,'depth')
 
-        # if 'rgb' in topic_split: 
-        #     self.rgb_df = self.set_image_df(topic,'rgb')
+        if 'rgb' in topic_split: 
+            self.rgb_df = self.set_image_df(topic,'rgb')
             
-        # if 'confidence' in topic_split:
-        #     self.confidence_df = self.set_image_df(topic,'confidence')
+        if 'confidence' in topic_split:
+            self.confidence_df = self.set_image_df(topic,'confidence')
             
 
 
@@ -85,7 +85,7 @@ class READER():
             numpy_path_list = []
             for topic, msg, t in bag.read_messages(topics=topic):
                 try:
-                    cv_img = bridge.imgmsg_to_cv2(msg, desired_encoding="32FC1")
+                    cv_img = bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
                 except CvBridgeError as e:
                     print(e)
                 
@@ -98,7 +98,6 @@ class READER():
                 cv2.imwrite(frame_path, cv_img)
 
                 self.frame_count += 1
-
             bag.close()
             print("images saved")
             return frame_path_list, numpy_path_list
@@ -109,6 +108,7 @@ class READER():
         pass 
     
     def set_image_df(self,topic, image_type):
+        self.frame_count = 0
         if os.path.exists(self.metadata_file):
             df = pd.read_csv(self.MetaData[image_type])
         else:
@@ -140,6 +140,6 @@ class READER():
     
 
 if __name__ == '__main__':
-    read = READER('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-10-24-00-07-50.bag')
+    read = READER('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-10-27-12-42-56.bag')
     read.read()
     a=1
