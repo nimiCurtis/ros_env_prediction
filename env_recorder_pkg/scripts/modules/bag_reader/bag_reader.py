@@ -74,7 +74,6 @@ class READER():
             
         if 'confidence' in topic_split:
             self.confidence_df = self.set_image_df(topic,'confidence')
-            
 
 
     def extract_images(self, topic, dir, img_type):
@@ -107,10 +106,11 @@ class READER():
         
         pass 
     
-    def set_image_df(self,topic, image_type):
+    def set_image_df(self,topic,image_type):
         self.frame_count = 0
         if os.path.exists(self.metadata_file):
             df = pd.read_csv(self.MetaData[image_type])
+            return df
         else:
             dir = os.path.join(self.bag_read.datafolder,image_type)
             dir_vals = os.path.join(dir,'vals')
@@ -126,10 +126,12 @@ class READER():
                 df['frame_path'], _ = self.extract_images(topic, dir, image_type)
             else:
                 df['frame_path'], df['np_path'] = self.extract_images(topic, dir, image_type)
+
             df.to_csv(tmp_file)
             self.MetaData[image_type] = tmp_file
-
             return df
+
+        
         
     def save_np_data(self,img,dir, d_type=np.float32):
             img_array = np.array(img, dtype=d_type)
