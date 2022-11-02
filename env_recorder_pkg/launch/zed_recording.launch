@@ -1,6 +1,7 @@
 <!-- -*- xml -*- -->
 <!--
-
+  - launch the zed_operate launch file
+  - future developing - change arguments / params depends on config
   -->
 
 <launch>

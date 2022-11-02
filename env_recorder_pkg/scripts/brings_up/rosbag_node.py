@@ -36,7 +36,6 @@ class RosbagRecord:
         
         if cfg.recording.rec_disparity:
             topics_list.append(cfg.topics.disparity)
-        ## add disparity
 
         self.record_script = cfg.recording.script           # use bash script from path in config
         self.record_folder = cfg.recording.bag_folder       # use folder to store the bag from path in config
@@ -52,12 +51,12 @@ class RosbagRecord:
                                     shell=True,
                                     executable='/bin/bash') 
         
-        rospy.spin() 
+        rospy.spin() # effectively go into an infinite loop until it receives a shutdown signal
         
         
 
     def terminate_ros_node(self, s):
-        """This function terminate the rosb
+        """This function terminate the ros node starting with the given argument
 
             Args:
                 s (string): first word of the target node to kill
