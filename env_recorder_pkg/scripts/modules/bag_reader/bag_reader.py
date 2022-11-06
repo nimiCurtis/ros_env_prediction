@@ -196,7 +196,7 @@ class READER():
 
         bag.close()
         
-        print("images saved") # convert to log
+        print(f"[INFO] {img_type} folder saved") # convert to log
         
         return frame_path_list, numpy_path_list
         
@@ -258,5 +258,5 @@ class READER():
     
 
 if __name__ == '__main__':
-    read = READER('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-10-27-12-42-56.bag')
+    read = READER('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-11-06-19-06-55.bag')
     read.read()

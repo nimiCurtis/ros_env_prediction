@@ -83,7 +83,7 @@ class DepthProcessor():
         plt.imshow(img)
         plt.show()
 
-def main():
+def main(): 
     pass
 
 
