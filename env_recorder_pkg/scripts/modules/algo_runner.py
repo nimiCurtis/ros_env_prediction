@@ -34,27 +34,47 @@ class StairDetector:
 
     def detect(self,img_depth,depth, vis=True):
         stairs_lines = []
-        blured = cv2.GaussianBlur(img_depth,(11,11),0,0)
-        edges = cv2.Canny(blured,0,0,apertureSize = 7)
-        minLineLength = 0
-        maxLineGap = 0
-        lines = cv2.HoughLinesP(edges,1,np.pi/180,30,minLineLength,maxLineGap)
+        threshold_sobel = 60  
+
+        blured = cv2.GaussianBlur(img_depth,(15,15),10,0)
+        #https://docs.opencv.org/4.x/d5/d0f/tutorial_py_gradients.html
+        laplacian = cv2.Laplacian(blured,cv2.CV_64F)
+        sobelx = cv2.Sobel(blured,cv2.CV_64F,1,0,ksize=7) 
+        sobely = cv2.Sobel(blured,cv2.CV_64F,0,1,ksize=7)
+        #sobely0 = sobely.astype("float32")
+        sobely_abs = np.abs(sobely)
+        sobely0 = sobely_abs + np.abs(sobely_abs.min())
+        sobely0 = (sobely0/sobely0.max())*255
+        sobely0 = sobely0.astype("uint8")
+        sobely0[sobely0<threshold_sobel] = 0 
+
+        # Output dtype = cv.CV_64F. Then take its absolute and convert to cv.CV_8U
+        
+
+        edges = cv2.Canny(sobely0,150 ,300 ,apertureSize = 5)
+        
+        minLineLength = 100
+        maxLineGap = 10
+
+        lines = cv2.HoughLinesP(edges,1,np.pi/180,10,minLineLength,maxLineGap)
         
         if lines is not None:           
             for line in lines:
                 for x1,y1,x2,y2 in line:            
-                    if x1 != x2 and (y1 > 10 and y2 > 10):                   
+                    if x1 != x2 and ((y1 > 10 and y2 > 10)and (y1 < 240 and y2 < 240)):                   
                         m = (y1-y2)/(x1-x2)                    
-                        if np.rad2deg(np.arctan(m))<15 and np.rad2deg(np.arctan(m))>-15 and depth[y1,x1]>100.0 and depth[y2,x2]> 100.0:
+                        if np.rad2deg(np.arctan(m))<20 and np.rad2deg(np.arctan(m))>-20 and depth[y1,x1]>300.0 and depth[y2,x2]> 300.0:
                             stairs_lines.append(line)
         if vis:
-            self.vis(blured,edges)
+            self.vis(blured,edges,sobely)
 
         return stairs_lines
 
-    def vis(self,blured, edges):
+    def vis(self,blured,edges,sobely):
         cv2.imshow("blured",blured)
         cv2.imshow("edges",edges)
+        cv2.imshow("sobely",sobely)
+        
 
 
 class NormalEstimation:
@@ -63,59 +83,32 @@ class NormalEstimation:
         pass
 
     def estimate(self,img_depth,depth, vis=True):
-        stairs_lines = []
-        threshold_sobel = 60  
+        zy, zx, _ = np.gradient(img_depth)  
+        # You may also consider using Sobel to get a joint Gaussian smoothing and differentation
+        # to reduce noise
+        #zx = cv2.Sobel(d_im, cv2.CV_64F, 1, 0, ksize=5)     
+        #zy = cv2.Sobel(d_im, cv2.CV_64F, 0, 1, ksize=5)
 
-        blured = cv2.GaussianBlur(img_depth,(13,13),0,0)
-        laplacian = cv2.Laplacian(blured,cv2.CV_64F)
-        sobelx = cv2.Sobel(blured,cv2.CV_64F,1,0,ksize=5)
-        sobely = cv2.Sobel(blured,cv2.CV_64F,0,1,ksize=5)
-        sobely0 = sobely.astype("float32")
-        sobely0 = np.abs(sobely0)
-        sobely0 = sobely0 + np.abs(sobely0.min())
-        sobely0 = (sobely0/sobely0.max())*255
-        sobely0 = sobely0.astype("uint8")
-        sobely0[sobely0<threshold_sobel] = 0 
+        normal = np.dstack((-zx, -zy, np.ones_like(img_depth)))
+        n = np.linalg.norm(normal, axis=2)
+        normal[:, :, 0] /= n
+        normal[:, :, 1] /= n
+        normal[:, :, 2] /= n
 
-        edges = cv2.Canny(sobely0,100 ,255,apertureSize = 3)
-        
-        minLineLength = 50
-        maxLineGap = 5
-
-        lines = cv2.HoughLinesP(edges,1,np.pi/180,30,minLineLength,maxLineGap)
-        
-        if lines is not None:           
-            for line in lines:
-                for x1,y1,x2,y2 in line:            
-                    if x1 != x2 and (y1 > 10 and y2 > 10):                   
-                        m = (y1-y2)/(x1-x2)                    
-                        if np.rad2deg(np.arctan(m))<15 and np.rad2deg(np.arctan(m))>-15 and depth[y1,x1]>100.0 and depth[y2,x2]> 100.0:
-                            stairs_lines.append(line)
-
-
-        #d_im = d_im.astype("float64")
-
-        # normals = np.array(d_im, dtype="float32")
-        # h,w,d = d_im.shape
-        # for i in range(1,w-1):
-        #     for j in range(1,h-1):
-        #         t = np.array([i,j-1,d_im[j-1,i,0]],dtype="float64")
-        #         f = np.array([i-1,j,d_im[j,i-1,0]],dtype="float64")
-        #         c = np.array([i,j,d_im[j,i,0]] , dtype = "float64")
-        #         d = np.cross(f-c,t-c)
-        #         n = d / np.sqrt((np.sum(d**2)))
-        #         normals[j,i,:] = n
+        # offset and rescale values to be in 0-255
+        normal += 1
+        normal /= 2
 
         if vis:
-            self.vis(laplacian , edges, sobely0)
+            self.vis(normal)
             
 
-        return stairs_lines
+        return normal
     
-    def vis(self,laplacian,edges, sobely0):
-        cv2.imshow("laplacian",laplacian)
-        cv2.imshow("edges",edges)
-        cv2.imshow("sobely",sobely0)
+    def vis(self,normal):
+        cv2.imshow("normal",normal[:, :, ::-1])
+
+
 
 
 class AlgoRunner:
@@ -125,8 +118,8 @@ class AlgoRunner:
         self.stair_detector = StairDetector()
         self.normal_estimator = NormalEstimation()
 
-        self.static_thresholds = [0.065,1]
-        self.dynamic_thresholds = {}
+        self.static_thresholds = [0.07,1]
+        self.dynamic_thresholds = {} 
         
         
 
@@ -145,7 +138,7 @@ class AlgoRunner:
 
         img[:,:w_grid[1]] = 0
         img[:,w_grid[3 ]:] = 0
-        #img[:h_grid[1],:] = 0          
+        #img[h_grid[2]:,:] = 0          
 
         return img
         
@@ -155,8 +148,9 @@ class AlgoRunner:
             and(std_grid[1,2]<self.static_thresholds[0])
             and(std_grid[2,1]<self.static_thresholds[1])
             and(std_grid[2,2]<self.static_thresholds[1])):
-            self.dynamic_thresholds["sa"] = [(mean_grid[0,j] -3*std_grid[0,j]) for j in range(std_grid.shape[1])]
-            self.dynamic_thresholds["sd"] = [(mean_grid[0,j] +3*std_grid[0,j]) for j in range(std_grid.shape[1])]
+            
+            self.dynamic_thresholds["sa"] = [(mean_grid[0,j] -6*std_grid[0,j]) for j in range(std_grid.shape[1])]
+            self.dynamic_thresholds["sd"] = [(mean_grid[0,j] +0.2 *std_grid[0,j]) for j in range(std_grid.shape[1])]
             
             return True
         else:
@@ -236,9 +230,9 @@ class AlgoRunner:
 
             mean_grid = dp.get_regions_mean(img_grid)    
             std_grid = dp.get_regions_std(img_grid)
-            #lines = self.stair_detector.detect(image_cropped,in_data["depth"], vis=True)
             
-            lines = self.normal_estimator.estimate(img_depth,depth, vis= True)
+            lines = self.stair_detector.detect(img_depth,depth, vis= True)
+            #normal = self.normal_estimator.estimate(img_depth,depth, vis= True)
             
             out_data["lines"], out_data["mean"], out_data["std"] = lines, mean_grid, std_grid
             out_data["intent"] = self.intent_recognizer(out_data)
