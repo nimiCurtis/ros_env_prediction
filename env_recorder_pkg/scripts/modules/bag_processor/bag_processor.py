@@ -18,11 +18,11 @@ class DepthProcessor():
 
         h_grid = np.linspace(0,depth_vals_array.shape[0],grid_shape[0]+1,dtype=np.uint16)
         w_grid = np.linspace(0,depth_vals_array.shape[1],grid_shape[1]+1,dtype=np.uint16)
-        
+
         regions_arr = [depth_vals_array[x:x+int(h_grid[1]),y:y+int(w_grid[1])] for x in range(0,depth_vals_array.shape[0],int(h_grid[1])) for y in range(0,depth_vals_array.shape[1],int(w_grid[1]))]
         regions = np.array(regions_arr)
 
-        return regions
+        return regions, h_grid, w_grid
 
     def get_regions_mean(self,depth_vals_splited,grid_shape=(3,4)):
         arr_len = grid_shape[0]*grid_shape[1]
@@ -82,6 +82,7 @@ class DepthProcessor():
 
         plt.imshow(img)
         plt.show()
+
 
 def main(): 
     pass
