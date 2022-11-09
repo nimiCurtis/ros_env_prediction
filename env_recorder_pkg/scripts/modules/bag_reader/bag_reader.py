@@ -1,9 +1,3 @@
-############## 
-## TO DO ##
-# documentation
-# path and folder organizing
-
-##############
 
 # reading bag files dependencies
 from bagpy import bagreader
@@ -19,7 +13,7 @@ import rosbag
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 
-class READER():
+class BagReader():
     """_summary_
         """        
     
@@ -35,10 +29,12 @@ class READER():
         
         # create or use exist metadata json file
         self.metadata_file = os.path.join(self.bag_read.datafolder, "metadata.json")    
-        self.MetaData = {}
+        self.MetaData ={}
         if os.path.exists(self.metadata_file): # if already exist load the content of its file to self.Metadata dict
             with open(self.metadata_file,"r") as json_file:
                 self.MetaData = json.load(json_file)
+        else:
+            self.MetaData["exported"] = False
         
         # initialize data frames
         self.rgb_df = pd.DataFrame()
@@ -49,20 +45,50 @@ class READER():
 
         # initialize counter
         self.frame_count = 0
+    
+    def get_data(self):
+        """This function export/read bag data based on metadata 'exported' status
+            """        
+
+        if self.MetaData["exported"]:
+            self.read()
+        else:
+            self.export()
 
     def read(self):
-        """This function read the data from the bag and modify the data frames acordingly
+        """This function reading bag data from existing folders
+            """        
+
+        print("[INFO]  Bag already exported, Reading data ...")
+
+        if "imu" in self.MetaData:
+            self.imu_df = pd.read_csv(self.MetaData["imu"])
+        if "rgb" in self.MetaData:
+            self.rgb_df = pd.read_csv(self.MetaData["rgb"])
+        if "depth" in self.MetaData:
+            self.depth_df = pd.read_csv(self.MetaData["depth"])
+        if "confidence" in self.MetaData:
+            self.confidence_df = pd.read_csv(self.MetaData["confidence"])
+        if "disparity" in self.MetaData:
+            self.disparity_df = pd.read_csv(self.MetaData["disparity"])
+        if "pointclod" in self.MetaData:
+            self.pointclod_df = pd.read_csv(self.MetaData["pointclod"])
+        if "tf" in self.MetaData:
+            self.tf_df = pd.read_csv(self.MetaData["tf"])
+
+    def export(self):
+        """This function export the data from the bag and modify the data frames accordingly
             """        
         
+
+        print("[INFO]  Bag doesn't exported, Exporting data ...")
+
         # set topic df
         self.topic_df = self.bag_read.topic_table
         
         # read and set imu_df
         for index, topic_row in self.topic_df.iterrows():
             if (topic_row['Types']=='sensor_msgs/Imu') and  topic_row['Message Count']!=0: # stop when topic is the imu topic and its not empty
-                if os.path.exists(self.metadata_file):  # if already exist load the data from its csv
-                    self.imu_df = pd.read_csv(self.MetaData["imu"]) 
-                else:
                     imu_file = self.bag_read.message_by_topic(topic_row['Topics']) # create the csv file  
                     self.imu_df = pd.read_csv(imu_file) # set the df
                     self.MetaData["imu"] = imu_file # save the path to metadata
@@ -70,13 +96,13 @@ class READER():
             if ((topic_row['Types']=='sensor_msgs/Image')or(topic_row['Types']=='stereo_msgs/DisparityImage')) and  topic_row['Message Count']!=0: # stop when topic is Image/Stereo kind and its not empty
                 self.init_image_df(topic_row['Topics']) 
         
-        if not os.path.exists(self.metadata_file): # if meta data not exist, create it using json.dump
-            with open(self.metadata_file, "w") as json_file:
-                json.dump(self.MetaData, json_file, indent=3)
-
+        # cahng exported status and dump MetaData to a json file
+        self.MetaData["exported"] = True
+        with open(self.metadata_file, "w") as json_file:
+            json.dump(self.MetaData, json_file, indent=3)
 
     def init_image_df(self,topic):
-        """_summary_
+        """This function initializing image data frames using set_image_df function per topic
 
             Args:
                 topic (string): name of the topic
@@ -113,34 +139,31 @@ class READER():
 
         self.frame_count = 0 # initialize counter every time using this function
 
-        if os.path.exists(self.metadata_file): # if metadata exist load from existing csv
-            df = pd.read_csv(self.MetaData[img_type])
-            
+        # set the img data folder and numpy values folder
+        dir = os.path.join(self.bag_read.datafolder,img_type)
+        dir_vals = os.path.join(dir,'vals')
+
+        # crating data folder for the relevant image type
+        if not os.path.exists(dir):
+            os.mkdir(dir)
+            if not os.path.exists(dir_vals) and img_type != 'rgb': # if not rgb type create values directory
+                os.mkdir(dir_vals) 
+        
+        # create csv temp file using the bagreader library - temporarily because it deosnt handle good with imgs 
+        tmp_file = self.bag_read.message_by_topic(topic)
+        df = pd.read_csv(tmp_file)
+        if (img_type != 'disparity'):
+            df.drop('data',inplace = True , axis =1) # drop the data column because its containing garbage data 
+        else: 
+            df.drop('image.data',inplace = True , axis =1) # drop image.data column from disparity df
+
+        if img_type == 'rgb' : # if rgb save only frame paths
+            df['frame_path'], _ = self.extract_images(topic, dir, img_type)
         else:
-            dir = os.path.join(self.bag_read.datafolder,img_type)
-            dir_vals = os.path.join(dir,'vals')
+            df['frame_path'], df['np_path'] = self.extract_images(topic, dir, img_type)
 
-            # crating data folder for the relevant image type
-            if not os.path.exists(dir):
-                os.mkdir(dir)
-                if not os.path.exists(dir_vals) and img_type != 'rgb': # if not rgb type create values directory
-                    os.mkdir(dir_vals) 
-            
-            # create csv temp file using the bagreader library - temporarily because it deosnt handle good with imgs 
-            tmp_file = self.bag_read.message_by_topic(topic)
-            df = pd.read_csv(tmp_file)
-            if (img_type != 'disparity'):
-                df.drop('data',inplace = True , axis =1) # drop the data column because its containing garbage data 
-            else: 
-                df.drop('image.data',inplace = True , axis =1) # drop image.data column from disparity df
-
-            if img_type == 'rgb' : # if rgb save only frame paths
-                df['frame_path'], _ = self.extract_images(topic, dir, img_type)
-            else:
-                df['frame_path'], df['np_path'] = self.extract_images(topic, dir, img_type)
-
-            df.to_csv(tmp_file) # create updated csv file
-            self.MetaData[img_type] = tmp_file # save to metadata
+        df.to_csv(tmp_file) # create updated csv file
+        self.MetaData[img_type] = tmp_file # save to metadata
         
         return df
 
@@ -186,8 +209,6 @@ class READER():
 
                 if (img_type == "disparity"):
                     cv_img = self.get_disparity_colormap(values_array,msg) # get color map of dispatity values
-                    
-
 
             frame_path_list.append(frame_path) # update frame path list
             cv2.imwrite(frame_path, cv_img)    # save img
@@ -195,15 +216,25 @@ class READER():
             self.frame_count += 1
 
         bag.close()
-        
-        print(f"[INFO] {img_type} folder saved") # convert to log
+        print(f"[INFO]  {img_type} folder saved") # convert it to log in the future
         
         return frame_path_list, numpy_path_list
         
-    def get_synced_df(self):
-        # make a df depend on timestamp
-        
-        pass 
+    def save_np_data(self,values_array,dir):
+        """This function save values of the image into .npy file 
+
+            Args:
+                values_array (numpy array): depth_values matrice 
+                dir (string): path to directory
+                
+
+            Returns:
+                numpy_path (string): path to the saved file
+            """
+
+        numpy_path = os.path.join(dir, "vals/np_values%06i.npy" % self.frame_count)
+        np.save(numpy_path, values_array)
+        return numpy_path
     
     def get_depth_normalization(self, img):
         """Normalize the depth image to fall between 0 (black) and 1 (white)
@@ -236,27 +267,17 @@ class READER():
         scaledDisparity = np.clip(scaledDisparity,0,255)
         scaledDisparity = scaledDisparity.astype(np.uint8)
         scaledDisparity = cv2.applyColorMap(scaledDisparity,cv2.COLORMAP_JET)
+
         return cv2.cvtColor(scaledDisparity, cv2.COLOR_BGR2RGB)
 
+    def get_synced_df(self):
+    # make a df depend on timestamp
+        pass
 
-    def save_np_data(self,values_array,dir):
-        """This function save values of the image into .npy file 
-
-            Args:
-                values_array (numpy array): depth_values matrice 
-                dir (string): path to directory
-                
-
-            Returns:
-                numpy_path (string): path to the saved file
-            """
-
-        numpy_path = os.path.join(dir, "vals/np_values%06i.npy" % self.frame_count)
-        np.save(numpy_path, values_array)
-        return numpy_path
+        
             
     
 
 if __name__ == '__main__':
-    read = READER('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-11-06-19-06-55.bag')
-    read.read()
+    bag_obj = BagReader('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-11-06-19-06-55.bag')
+    bag_obj.get_data()

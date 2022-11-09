@@ -25,6 +25,7 @@ recording:
   rec_rgb : True
   rec_depth : True
   rec_tf : False
-  rec_confidence: True
+  rec_confidence: False
   rec_disparity: True
+  rec_pointcloud: False
 

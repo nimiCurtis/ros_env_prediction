@@ -1,19 +1,9 @@
-#### TO DO ####
-# improve code structure - makes it generic with params
-# documentation
-# create config for algo runner
-# review logic
-
-# improve other code files and documents
 
 # test algo:
 #   - with different algo params (stairs detection / grid / crop) 
 #   - with different recording params (ROS yaml files of the camera)
 #   - with stair detector implementation on rgb/depth/disparity
-# create a local records (bag file) on jetson (with no wifi dependency) with better light conditions
-# add norm estimation
-# video writer - https://www.programcreek.com/python/example/72134/cv2.VideoWriter
-#  
+
 
 ########################
 
@@ -34,13 +24,13 @@ class StairDetector:
 
     def detect(self,img_depth,depth, vis=True):
         stairs_lines = []
-        threshold_sobel = 60  
+        threshold_sobel = 100     
 
-        blured = cv2.GaussianBlur(img_depth,(15,15),10,0)
+        blured = cv2.GaussianBlur(img_depth,(11,11),0,0)
         #https://docs.opencv.org/4.x/d5/d0f/tutorial_py_gradients.html
         laplacian = cv2.Laplacian(blured,cv2.CV_64F)
-        sobelx = cv2.Sobel(blured,cv2.CV_64F,1,0,ksize=7) 
-        sobely = cv2.Sobel(blured,cv2.CV_64F,0,1,ksize=7)
+        sobelx = cv2.Sobel(blured,cv2.CV_64F,1,0,ksize=5) 
+        sobely = cv2.Sobel(blured,cv2.CV_64F,0,1,ksize=5)
         #sobely0 = sobely.astype("float32")
         sobely_abs = np.abs(sobely)
         sobely0 = sobely_abs + np.abs(sobely_abs.min())
@@ -51,10 +41,10 @@ class StairDetector:
         # Output dtype = cv.CV_64F. Then take its absolute and convert to cv.CV_8U
         
 
-        edges = cv2.Canny(sobely0,150 ,300 ,apertureSize = 5)
+        edges = cv2.Canny(sobely0,100 ,250,apertureSize = 3)
         
-        minLineLength = 100
-        maxLineGap = 10
+        minLineLength = 90
+        maxLineGap = 10  
 
         lines = cv2.HoughLinesP(edges,1,np.pi/180,10,minLineLength,maxLineGap)
         
@@ -63,8 +53,8 @@ class StairDetector:
                 for x1,y1,x2,y2 in line:            
                     if x1 != x2 and ((y1 > 10 and y2 > 10)and (y1 < 240 and y2 < 240)):                   
                         m = (y1-y2)/(x1-x2)                    
-                        if np.rad2deg(np.arctan(m))<20 and np.rad2deg(np.arctan(m))>-20 and depth[y1,x1]>300.0 and depth[y2,x2]> 300.0:
-                            stairs_lines.append(line)
+                        if np.rad2deg(np.arctan(m))<20 and np.rad2deg(np.arctan(m))>-20 and depth[y1,x1]>300.0 and depth[y2,x2]> 300.0 and depth[y1,x1]!=np.inf :
+                            stairs_lines.append(line) 
         if vis:
             self.vis(blured,edges,sobely)
 
@@ -117,10 +107,8 @@ class AlgoRunner:
         
         self.stair_detector = StairDetector()
         self.normal_estimator = NormalEstimation()
-
-        self.static_thresholds = [0.07,1]
+        self.static_thresholds = [0.08,0.95]    
         self.dynamic_thresholds = {} 
-        
         
 
     def __len__(self):
@@ -130,7 +118,7 @@ class AlgoRunner:
         data = {}
         data["depth"] = np.load(self.bag_obj.depth_df.np_path[step])
         data["depth_img"] = cv2.imread(self.bag_obj.depth_df.frame_path[step])
-        #data["rgb_img"] = cv2.imread(bag_read.rgb_df.frame_path[step])
+        data["disparity_img"] = cv2.imread(self.bag_obj.rgb_df.frame_path[step])
         
         return data
 
@@ -149,9 +137,9 @@ class AlgoRunner:
             and(std_grid[2,1]<self.static_thresholds[1])
             and(std_grid[2,2]<self.static_thresholds[1])):
             
-            self.dynamic_thresholds["sa"] = [(mean_grid[0,j] -6*std_grid[0,j]) for j in range(std_grid.shape[1])]
-            self.dynamic_thresholds["sd"] = [(mean_grid[0,j] +0.2 *std_grid[0,j]) for j in range(std_grid.shape[1])]
-            
+            self.dynamic_thresholds["sa"] = [(mean_grid[0,j] -2.5*std_grid[0,j]) for j in range(std_grid.shape[1])]
+            self.dynamic_thresholds["sd"] = [(mean_grid[0,j] +2.5*std_grid[0,j]) for j in range(std_grid.shape[1])]
+
             return True
         else:
             return False
@@ -221,7 +209,7 @@ class AlgoRunner:
             out_data = {}
 
             in_data = self.get_current_step(step)
-            img_depth = in_data["depth_img"].copy()
+            img_depth = in_data["disparity_img"].copy()
             depth =  in_data["depth"].copy()
 
             img_grid, h_grid, w_grid = dp.split_to_regions(depth)
@@ -249,15 +237,14 @@ class AlgoRunner:
         
         print(out_data["intent"])
         if out_data["lines"] is not None:           
-            for line in out_data["lines"]:
+            for line in out_data["lines"]:        
                 for x1,y1,x2,y2 in line:            
-                    cv2.line(in_data["depth_img"],(x1,y1),(x2,y2),(0,255,0),2)
+                    cv2.line(in_data["disparity_img"],(x1,y1),(x2,y2),(0,255,0),2)
                     #cv2.line(in_data["rgb_img"],(x1,y1),(x2,y2),(0,255,0),2)
 
-        cv2.imshow("depth", in_data["depth_img"])
+        cv2.imshow("rgb", in_data["disparity_img"])
         #cv2.imshow("depth", in_data["rgb_img"])
-        
-        
+
         if cv2.waitKey(33) == ord('q'): 
             cv2.destroyAllWindows()   # Esc key to stop
             raise Exception()
@@ -268,7 +255,7 @@ class AlgoRunner:
 
 
 def main():
-    bag_read = READER('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-10-27-12-42-56.bag')
+    bag_read = READER('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-11-08-10-07-30.bag')
     bag_read.read()
     algo_runner = AlgoRunner(bag_read)
     algo_runner.run()
