@@ -15,10 +15,10 @@ from cv_bridge import CvBridge, CvBridgeError
 
 class BagReader():
     """_summary_
-        """        
+    """    
     
     def __init__(self, bag_file):
-        """ Constructor of READER object
+        """ Constructor of BagReader object
 
             Args:
                 bag_file (string): path string of .bag file
@@ -122,6 +122,7 @@ class BagReader():
         if 'confidence' in topic_split:
             self.confidence_df = self.set_image_df(topic,'confidence')
 
+        # handle with disaprity
         if 'disparity' in topic_split:
             self.disparity_df = self.set_image_df(topic, 'disparity')
 
@@ -203,12 +204,17 @@ class BagReader():
 
             if (img_type != "rgb"): # if not rgb type save the real values as .npy file, and update np list
                 values_array = np.array(cv_img, dtype=np.float32) # convert type to d_type --> extract depth values
-                numpy_path_list.append(self.save_np_data(values_array,dir)) # save values
+                
                 if (img_type == "depth"):
+                    #values_array = values_array/1000.0 # convert to meters
                     cv_img = self.get_depth_normalization(values_array) # get normalized image of depth values
 
                 if (img_type == "disparity"):
                     cv_img = self.get_disparity_colormap(values_array,msg) # get color map of dispatity values
+                
+                
+                numpy_path_list.append(self.save_np_data(values_array,dir)) # save values
+                
 
             frame_path_list.append(frame_path) # update frame path list
             cv2.imwrite(frame_path, cv_img)    # save img
@@ -262,21 +268,17 @@ class BagReader():
                 (numpy array): color map image of the disparity values
             """        
 
-        multiplier = 255/(msg.max_disparity - msg.min_disparity)
-        scaledDisparity = (values_array - msg.min_disparity)*multiplier + 0.5
-        scaledDisparity = np.clip(scaledDisparity,0,255)
-        scaledDisparity = scaledDisparity.astype(np.uint8)
-        scaledDisparity = cv2.applyColorMap(scaledDisparity,cv2.COLORMAP_JET)
+        shifted_disparity = (values_array - msg.min_disparity)                    # shift values to get rid from negetive vals | current_min = 0
+        scaled_disparity = (shifted_disparity*255)/(np.nanmax(shifted_disparity)) # normalize to fall between (0,255) 
+        scaled_disparity = np.clip(scaled_disparity,0,255)                        # clip , not sure if totaly necssary
+        scaled_disparity = scaled_disparity.astype(np.uint8)                      # change format 
+        colormap_disparity= cv2.applyColorMap(scaled_disparity,cv2.COLORMAP_JET)  # apply colormap
 
-        return cv2.cvtColor(scaledDisparity, cv2.COLOR_BGR2RGB)
+        return cv2.cvtColor(colormap_disparity, cv2.COLOR_BGR2RGB)                # convert to rgb --> red = close dist, blue = far dist
 
     def get_synced_df(self):
     # make a df depend on timestamp
         pass
-
-        
-            
-    
 
 if __name__ == '__main__':
     bag_obj = BagReader('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-11-06-19-06-55.bag')

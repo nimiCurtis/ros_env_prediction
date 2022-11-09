@@ -11,7 +11,7 @@ import cv2
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from bag_reader.bag_reader import READER
+from bag_reader.bag_reader import BagReader
 from bag_processor.bag_processor import DepthProcessor
 dp = DepthProcessor()
 
