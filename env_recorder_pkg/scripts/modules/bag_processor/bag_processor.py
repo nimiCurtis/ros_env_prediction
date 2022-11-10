@@ -1,5 +1,6 @@
 # Import libraries
 import os
+from typing import Union
 import numpy as np
 import pandas as pd
 import cv2
@@ -13,20 +14,21 @@ class ImageHandler():
         """_summary_
             """        
         
-        self.grid_shape = (3,4)           # shape of the image grid
+        # shape and size of the image grid
+        self.grid_shape = (3,4)           
+        self.number_of_regions = self.grid_shape[0]*self.grid_shape[1]
 
-    def split_to_regions(self, img):
+    def split_to_regions(self, img:np.ndarray)-> Union[np.ndarray,np.ndarray,np.ndarray]:
         """This function split generic image matrice to regions
 
             Args:
-                img (numpy array): generic image matrice
+                img (np.ndarray): generic image matrice
 
             Returns:
-                regions (numpy array): splited matrice by defined regions
-                h_grid (numpy array): hight regions 
-                w_grid (numpy array): width regions
+                Union[np.ndarray,np.ndarray,np.ndarray]: regions, h_grid, w_grid 
             """        
-        # split hight and width indexes by requierd grid shape
+
+        # split height and width indexes by requierd grid shape
         h_grid = np.linspace(0,img.shape[0],self.grid_shape[0]+1,dtype=np.uint16) 
         w_grid = np.linspace(0,img.shape[1],self.grid_shape[1]+1,dtype=np.uint16)
 
@@ -36,33 +38,30 @@ class ImageHandler():
 
         return regions, h_grid, w_grid
 
-    def get_regions_mean(self,img):
+    def get_regions_mean(self,img:np.ndarray)->np.ndarray:
         """This function calculate image regions means
 
             Args:
-                img (numpy array): generic image matrice
+                img (np.ndarray): splited image matrice
 
             Returns:
-                mean_arr (numpy array): means of image splited regions
-            """
+                np.ndarray: regions means of the splited image 
+            """               
 
-        arr_len = self.grid_shape[0]*self.grid_shape[1] 
-        mean_arr = np.array([np.nanmean(img[x]) for x in range(arr_len)]).reshape(self.grid_shape)
+        mean_arr = np.array([np.nanmean(img[x]) for x in range(self.number_of_regions)]).reshape(self.grid_shape)
 
         return mean_arr
     
-    def get_regions_std(self,img):
+    def get_regions_std(self,img: np.ndarray)-> np.ndarray:
         """This function calculate image regions std
-
             Args:
-                img (numpy array): generic image matrice
+                img (np.ndarray): splited image matrice
 
             Returns:
-                std_arr (numpy array): standard deviation of image splited regions
-            """    
+                np.ndarray: standard deviation of image splited regions
+            """           
 
-        arr_len = self.grid_shape[0]*self.grid_shape[1]
-        std_arr = np.array([np.nanstd(img[x]) for x in range(arr_len)]).reshape(self.grid_shape)
+        std_arr = np.array([np.nanstd(img[x]) for x in range(self.number_of_regions)]).reshape(self.grid_shape)
 
         return std_arr
 
