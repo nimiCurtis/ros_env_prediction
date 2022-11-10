@@ -36,7 +36,7 @@ class StairDetector:
         stairs_lines = []
 
         # init thresholds
-        threshold_sobel = 100     
+        threshold_sobel = 50     
 
         # pre-process the image
         blured = cv2.GaussianBlur(img,(11,11),0,0)        # get blured img
@@ -61,12 +61,12 @@ class StairDetector:
         # sobely0[sobely0<threshold_sobel] = 0 
         
         # apply canny edge detection
-        edges = cv2.Canny(sobely_u8,100 ,250,apertureSize = 3)
+        edges = cv2.Canny(sobely_u8,30 ,150,apertureSize = 3)
         
         # apply Houghline detector
-        minLineLength = 90
-        maxLineGap = 10  
-        lines = cv2.HoughLinesP(edges,1,np.pi/180,10,minLineLength,maxLineGap)
+        minLineLength = 50
+        maxLineGap = 5  
+        lines = cv2.HoughLinesP(edges,1,np.pi/180,1,minLineLength,maxLineGap)
         
         # eliminate irelevant lines
         if lines is not None:           
@@ -74,12 +74,12 @@ class StairDetector:
                 for x1,y1,x2,y2 in line:            
                     if x1 != x2 and ((y1 > 10 and y2 > 10)and (y1 < 240 and y2 < 240)):                   
                         m = (y1-y2)/(x1-x2)                    
-                        if np.rad2deg(np.arctan(m))<20 and np.rad2deg(np.arctan(m))>-20 and depth[y1,x1]>300.0 and depth[y2,x2]> 300.0 and depth[y1,x1]!=np.inf :
+                        if np.rad2deg(np.arctan(m))<20 and np.rad2deg(np.arctan(m))>-20 and depth[y1,x1]>0.3 and depth[y2,x2]> 0.3 and depth[y1,x1]!=np.inf :
                             stairs_lines.append(line) 
         
         # visualize relevant images
         if vis:
-            self.vis({"blured":blured,"edges":edges,"sobely":sobely})
+            self.vis(blured=blured,edges=edges,sobely=sobely)
 
         return stairs_lines
 
@@ -88,7 +88,7 @@ class StairDetector:
             """        
 
         for image in kwargs.keys():
-            cv2.imshow(image,kwargs[image])
+            cv2.imshow(image, kwargs[image])
         
 class NormalEstimation: # will continue in future work
 
@@ -294,7 +294,7 @@ class AlgoRunner:
             std_grid = dp.get_regions_std(depth_grid)
             
             # detect staires lines
-            lines = self.stair_detector.detect(img,depth, vis= True)
+            lines = self.stair_detector.detect(img, depth, vis=True)
             
             # update output dictionary and apply intent recognition system
             out_data["lines"], out_data["mean"], out_data["std"] = lines, mean_grid, std_grid
