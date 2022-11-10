@@ -10,12 +10,12 @@ import os
 import argparse
 import cv2
 import rosbag
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, PointCloud2
 from cv_bridge import CvBridge, CvBridgeError
 
 class BagReader():
     """_summary_
-    """    
+        """    
     
     def __init__(self, bag_file):
         """ Constructor of BagReader object
@@ -267,9 +267,9 @@ class BagReader():
             Returns:
                 (numpy array): color map image of the disparity values
             """        
-
+        normal_dist = msg.max_disparity - msg.min_disparity
         shifted_disparity = (values_array - msg.min_disparity)                    # shift values to get rid from negetive vals | current_min = 0
-        scaled_disparity = (shifted_disparity*255)/(np.nanmax(shifted_disparity)) # normalize to fall between (0,255) 
+        scaled_disparity = (shifted_disparity*255)/normal_dist            # normalize to fall between (0,255) 
         scaled_disparity = np.clip(scaled_disparity,0,255)                        # clip , not sure if totaly necssary
         scaled_disparity = scaled_disparity.astype(np.uint8)                      # change format 
         colormap_disparity= cv2.applyColorMap(scaled_disparity,cv2.COLORMAP_JET)  # apply colormap
@@ -281,5 +281,5 @@ class BagReader():
         pass
 
 if __name__ == '__main__':
-    bag_obj = BagReader('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-11-06-19-06-55.bag')
+    bag_obj = BagReader('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-11-08-10-07-30.bag')
     bag_obj.get_data()
