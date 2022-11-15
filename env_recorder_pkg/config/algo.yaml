@@ -1,0 +1,50 @@
+hydra:
+  run:
+    #dir:  /home/zion/catkin_ws/src/ros_env_prediction/env_recorder_pkg/config/algo_configs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+    dir: /home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/config/algo_configs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+
+StairDetector:
+
+  type:    # which type of detector | 0 = | 1 = | 2 = | need to fill it
+
+
+  Sobel:
+    ksize: 5
+    thresh: 50
+  
+  GaussianBlur:
+    ksize: 11
+    sigmaX: 0
+    sigmaY: 0
+  
+  Canny:
+    thresh1: 30
+    thresh2: 150
+    aperture: 3
+
+  HoughLinesP:
+    minLineLength: 50
+    maxLineGap: 5
+    rho: 1
+    theta: 180
+    thresh: 1
+
+  Eliminate:
+    top: 10
+    bottom: 240
+    theta: 20
+    depth: 0.3
+
+  Gabor: # TO DO
+
+NormalEstimation: # TO DO
+  
+AlgoRunner:
+  save_run: False
+  
+  IntentRecognition:
+    static_thresholds: [0.08,0.95]
+    dynamic_thresholds:
+      sa: -2.5
+      sd: 2.5
+

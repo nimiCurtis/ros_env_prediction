@@ -1,4 +1,6 @@
 # imports
+import hydra
+from omegaconf import DictConfig
 from typing import Union
 import cv2
 import numpy as np
@@ -14,10 +16,19 @@ class StairDetector:
     """_summary_
         """    
 
-    def __init__(self):
-        """_summary_
-            """        
-        pass
+    def __init__(self,cfg : DictConfig):
+        """StairDetector constructor
+
+        Args:
+            cfg (DictConfig): config dictionary
+        """        
+
+        # init config
+        self.sobel_config = cfg.Sobel
+        self.blur_config = cfg.GaussianBlur
+        self.canny_config = cfg.Canny
+        self.hough_config = cfg.HoughLinesP
+        self.eliminate_config = cfg.Eliminate
 
     def detect(self,img:np.ndarray,depth:np.ndarray,vis:bool=True)->list:
         """This function detect stairs lines using and image and depth values
@@ -31,19 +42,25 @@ class StairDetector:
                 list: list of the detected stairs lines
             """        
 
-
         # init params and vars
         stairs_lines = []
 
-        # init thresholds
-        threshold_sobel = 50     
+        threshold_sobel = self.sobel_config.thresh     
 
         # pre-process the image
-        blured = cv2.GaussianBlur(img,(11,11),0,0)        # get blured img
+        # apply gaussian blurring
+        g_ksize = (self.blur_config.ksize,self.blur_config.ksize)
+        sigmaX = self.blur_config.sigmaX
+        sigmaY = self.blur_config.sigmaY
+        blured = cv2.GaussianBlur(img,g_ksize,sigmaX,sigmaY)        # get blured img
         #https://docs.opencv.org/4.x/d5/d0f/tutorial_py_gradients.html
         laplacian = cv2.Laplacian(blured,cv2.CV_64F)      # get laplacian img
-        sobelx = cv2.Sobel(blured,cv2.CV_64F,1,0,ksize=5) # get sobelx img
-        sobely = cv2.Sobel(blured,cv2.CV_64F,0,1,ksize=5) # get sobely img
+        
+        # apply sobel functions
+        sobel_thresh = self.sobel_config.thresh
+        s_ksize = self.sobel_config.ksize
+        sobelx = cv2.Sobel(blured,cv2.CV_64F,1,0,s_ksize) # get sobelx img
+        sobely = cv2.Sobel(blured,cv2.CV_64F,0,1,s_ksize) # get sobely img
         
         # normalized sobel matrice
         # shift the matrice by the min val
@@ -52,7 +69,7 @@ class StairDetector:
         sobely_scaled = (sobely_shifted/np.max(sobely_shifted))*255
         # convert matrice to uint8
         sobely_u8 = sobely_scaled.astype("uint8")
-        sobely_u8[sobely_u8<threshold_sobel] = 0
+        sobely_u8[sobely_u8<sobel_thresh] = 0
 
         # sobely_abs = np.abs(sobely)
         # sobely0 = sobely_abs + np.abs(sobely_abs.min())
@@ -61,20 +78,31 @@ class StairDetector:
         # sobely0[sobely0<threshold_sobel] = 0 
         
         # apply canny edge detection
-        edges = cv2.Canny(sobely_u8,30 ,150,apertureSize = 3)
+        canny_thresh1 = self.canny_config.thresh1
+        canny_thresh2 = self.canny_config.thresh2
+        aperture = self.canny_config.aperture
+        edges = cv2.Canny(sobely_u8, canny_thresh1, canny_thresh2, aperture)
         
         # apply Houghline detector
-        minLineLength = 50
-        maxLineGap = 5  
-        lines = cv2.HoughLinesP(edges,1,np.pi/180,1,minLineLength,maxLineGap)
+        minLineLength = self.hough_config.minLineLength
+        maxLineGap = self.hough_config.maxLineGap
+        rho = self.hough_config.rho
+        theta = np.pi/self.hough_config.theta
+        hough_thresh = self.hough_config.thresh
+        lines = cv2.HoughLinesP(edges,rho,theta,hough_thresh,minLineLength,maxLineGap)
         
         # eliminate irelevant lines
+        eliminate_top = self.eliminate_config.top
+        eliminate_bottom = self.eliminate_config.bottom
+        eliminate_theta = self.eliminate_config.theta
+        eliminate_depth = self.eliminate_config.depth
+
         if lines is not None:           
             for line in lines:
                 for x1,y1,x2,y2 in line:            
-                    if x1 != x2 and ((y1 > 10 and y2 > 10)and (y1 < 240 and y2 < 240)):                   
+                    if x1 != x2 and ((y1 > eliminate_top and y2 > eliminate_top) and (y1 < eliminate_bottom and y2 < eliminate_bottom)):                   
                         m = (y1-y2)/(x1-x2)                    
-                        if np.rad2deg(np.arctan(m))<20 and np.rad2deg(np.arctan(m))>-20 and depth[y1,x1]>0.3 and depth[y2,x2]> 0.3 and depth[y1,x1]!=np.inf :
+                        if np.rad2deg(np.arctan(m))<eliminate_theta and np.rad2deg(np.arctan(m))>-eliminate_theta and depth[y1,x1]>eliminate_depth and depth[y2,x2]> eliminate_depth and depth[y1,x1]!=np.inf :
                             stairs_lines.append(line) 
         
         # visualize relevant images
@@ -106,15 +134,27 @@ class NormalEstimation: # will continue in future work
 
 class AlgoRunner:
 
-    def __init__(self,bag_obj:BagReader):
+    def __init__(self,bag_obj:BagReader,cfg:DictConfig ):
+        """AlgoRunner constructor
+
+        Args:
+            bag_obj (BagReader): bag object
+            cfg (DictConfig): config dictionary
+        """        
+
+        # init bag object
         self.bag_obj = bag_obj
         
+        #init algo config
+        self.intent_config = cfg.AlgoRunner.IntentRecognition
+        self.save_run = cfg.AlgoRunner.save_run
+
         # init detectors/estimators
-        self.stair_detector = StairDetector()
+        self.stair_detector = StairDetector(cfg.StairDetector)
         self.normal_estimator = NormalEstimation()
         
         # set thresholds
-        self.static_thresholds = [0.08,0.95]    
+        self.static_thresholds = self.intent_config.static_thresholds    
         self.dynamic_thresholds = {} 
         
     def __len__(self): ## need to change 
@@ -162,8 +202,11 @@ class AlgoRunner:
             and(std_grid[2,2]<self.static_thresholds[1])):
             
             # update dynamic thresholds
-            self.dynamic_thresholds["sa"] = [(mean_grid[0,j] -2.5*std_grid[0,j]) for j in range(std_grid.shape[1])]
-            self.dynamic_thresholds["sd"] = [(mean_grid[0,j] +2.5*std_grid[0,j]) for j in range(std_grid.shape[1])]
+            sa_cof = self.intent_config.dynamic_thresholds.sa 
+            sd_cof = self.intent_config.dynamic_thresholds.sd
+
+            self.dynamic_thresholds["sa"] = [(mean_grid[0,j] +sa_cof*std_grid[0,j]) for j in range(std_grid.shape[1])]
+            self.dynamic_thresholds["sd"] = [(mean_grid[0,j] +sd_cof*std_grid[0,j]) for j in range(std_grid.shape[1])]
 
             return True
         
@@ -307,7 +350,8 @@ class AlgoRunner:
             algo_buffer.append(out_data)
 
         # save output data of this run
-        self.save_runner(algo_buffer)
+        if self.save_run:
+            self.save_runner(algo_buffer)
 
     def save_runner(self,algo_buffer):
         pass
@@ -341,10 +385,12 @@ class AlgoRunner:
         else:
             cv2.waitKey(0)
 
-def main():
+# Use hydra for configuration managing
+@hydra.main(config_path="../../config", config_name = "algo")
+def main(cfg):
     bag_obj = BagReader('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-11-08-10-07-30.bag')
     bag_obj.get_data()
-    algo_runner = AlgoRunner(bag_obj)
+    algo_runner = AlgoRunner(bag_obj,cfg)
     algo_runner.run()
 
 if __name__ == "__main__":

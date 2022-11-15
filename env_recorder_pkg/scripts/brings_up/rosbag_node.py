@@ -2,8 +2,11 @@
 
 # Libraries
 import hydra
+from hydra import compose, initialize
+from omegaconf import OmegaConf
 from omegaconf import DictConfig
 import rospy
+import rosparam
 import subprocess
 import os
 
@@ -39,7 +42,8 @@ class RosbagRecord:
 
         self.record_script = cfg.recording.script           # use bash script from path in config
         self.record_folder = cfg.recording.bag_folder       # use folder to store the bag from path in config
-        
+        self.recorded_cam_params_folder = cfg.recording.camera_params_fodler
+
         rospy.on_shutdown(self.stop_recording_handler)      # when ros shuting down execute the handler 
         
         command = "source " + self.record_script +" "+  " ".join(topics_list) # build rosbag command depend on the topic list
@@ -75,8 +79,16 @@ class RosbagRecord:
     def stop_recording_handler(self):
         """This function execute the terminate function when ros shutdown
             """        
-        rospy.loginfo("ctrl-c detected")
+        rospy.loginfo("Ctrl-c detected")
         self.terminate_ros_node("/record")
+        rospy.loginfo("Bag saved")
+
+        rospy.loginfo("Saving camera configurations..")
+        os.mkdir(self.recorded_cam_params_folder)
+        rosparam.dump_params(self.recorded_cam_params_folder+"/zedm.yaml",param="zedm")
+        rosparam.dump_params(self.recorded_cam_params_folder+"/common.yaml",param="common")
+        
+        
 
 # Use hydra for configuration managing
 @hydra.main(config_path="../../config", config_name = "record")
@@ -84,6 +96,7 @@ def main(cfg):
     rospy.init_node('rosbag_record')                # Init node
     rospy.loginfo(rospy.get_name() + ' start')      
 
+    
     # Go to class functions that do all the heavy lifting. Do error checking.
     try:
         rosbag_record = RosbagRecord(cfg)
@@ -92,4 +105,6 @@ def main(cfg):
 
 
 if __name__ == '__main__':
+
+
     main()

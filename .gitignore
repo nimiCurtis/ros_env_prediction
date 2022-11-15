@@ -1,4 +1,5 @@
 env_recorder_pkg/bag/*
 env_recorder_pkg/config/recorder_configs/*
+env_recorder_pkg/config/algo_configs/*
 .vscode
 __pycache__/

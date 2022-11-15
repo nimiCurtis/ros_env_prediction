@@ -2,6 +2,12 @@
 # Parameters for Stereolabs ZED mini camera
 ---
 
+hydra:
+  run:
+    #dir:  /home/zion/catkin_ws/src/ros_env_prediction/env_recorder_pkg/config/recorder_configs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+    dir: /home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/config/recorder_configs/${now:%Y-%m-%d}/zedm_${now:%H-%M-%S}
+
+
 general:
     camera_model:               'zedm'
 
