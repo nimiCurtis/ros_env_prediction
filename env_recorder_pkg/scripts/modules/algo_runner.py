@@ -39,7 +39,6 @@ class StairDetector:
             Returns:
                 list: list of the detected stairs lines
             """        
-        # new
         # init configs
         sobel_config = self.cfg.Sobel
         gauss_config = self.cfg.GaussianBlur
