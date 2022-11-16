@@ -65,17 +65,16 @@ class ImageHandler():
 
         return std_arr
 
-    def extract_features_singleImg(self,img):
+    def extract_features_singleImg(self,img: np.ndarray)->Union[np.ndarray,np.ndarray]:
         """This function extract relevant features from image matrice
-
+        
             Args:
-                img (numpy array): generic image matrice
+                img (np.ndarray): generic image matrice
 
             Returns:
-                mean (numpy array): means array from 'get_regions_mean()'
-                std (numpy array): std array from 'get_regions_std()'
-            """        
-        
+                Union[np.ndarray,np.ndarray]: means array, std array
+            """  
+
         # first split the image
         img_splited = self.split_to_regions(img) 
 
@@ -84,7 +83,71 @@ class ImageHandler():
         std = self.get_regions_std(img_splited)
 
         return mean, std
-    
+
+
+    def GaussianBlur(self, img: np.ndarray, config: dict)->np.ndarray: # docstring
+        gs_ksize = (config.ksize,config.ksize)
+        sigmaX = config.sigmaX
+        sigmaY = config.sigmaY
+        gauss_blured = cv2.GaussianBlur(img,gs_ksize,sigmaX,sigmaY)
+
+        return gauss_blured
+
+    def GaborFilter(self, img: np.ndarray, config: dict)->np.ndarray: # docstring
+        gb_ksize = (config.ksize,config.ksize)
+        sigma = config.sigma
+        theta = np.deg2rad(config.theta)
+        lambd = config.lambd  
+        gamma = config.gamma
+        psi = config.psi
+        gabor_kernel = cv2.getGaborKernel(gb_ksize,sigma,theta,lambd,gamma,psi)
+        gabor_filtered = cv2.filter2D(img,-1,gabor_kernel)
+
+        return gabor_filtered
+
+    def BilateralFilter(self,img: np.ndarray, config: dict)->np.ndarray: # docstring
+        d = config.d
+        sigmaColor = config.sigmaColor 
+        sigmaSpace = config.sigmaSpace
+        bilateral_filterd = cv2.bilateralFilter(img, d, sigmaColor, sigmaSpace)
+
+        return bilateral_filterd
+
+    def Sobel(self,img: np.ndarray, config: dict)->np.ndarray: # docstring
+        sobel_thresh = config.thresh
+        s_ksize = config.ksize
+        sobely = cv2.Sobel(img,cv2.CV_64F,0,1,s_ksize) # get sobely img
+        # normalized sobel matrice
+        # take the abs because sobel consist negative values.
+        sobely_abs = np.abs(sobely)
+        # shift the matrice by the min val
+        # sobely_shifted = sobely - np.min(sobely)
+        # scaled the matrice to fall between 0-255
+        sobely_scaled = (sobely_abs/np.max(sobely_abs))*255
+        # convert matrice to uint8
+        sobely_u8 = sobely_scaled.astype("uint8")
+        sobely_u8[sobely_u8<sobel_thresh] = 0
+
+        return sobely_u8
+
+    def Canny(self,img: np.ndarray, config: dict)->np.ndarray: # docstring
+        canny_thresh1 = config.thresh1
+        canny_thresh2 = config.thresh2
+        aperture = config.aperture
+        edges = cv2.Canny(img, canny_thresh1, canny_thresh2, aperture)
+
+        return edges
+
+    def Hough(self,img: np.ndarray, config: dict)->np.ndarray: # docstring
+        minLineLength = config.minLineLength
+        maxLineGap = config.maxLineGap
+        rho = config.rho
+        theta = np.pi/config.theta 
+        hough_thresh = config.thresh
+        lines = cv2.HoughLinesP(img, rho, theta, hough_thresh, minLineLength, maxLineGap)
+
+        return lines
+
     def imshow_with_grid(self,img_path, color=(0, 255, 0), thickness=1):
         """This function show image with the grid 
 

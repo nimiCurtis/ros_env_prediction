@@ -9,8 +9,9 @@ import matplotlib.pyplot as plt
 
 # import bag reader and processor modules
 from bag_reader.bag_reader import BagReader
-from bag_processor.bag_processor import DepthHandler
+from bag_processor.bag_processor import DepthHandler, ImageHandler
 dp = DepthHandler()
+ih = ImageHandler()
 
 class StairDetector:
     """_summary_
@@ -24,11 +25,8 @@ class StairDetector:
         """        
 
         # init config
-        self.sobel_config = cfg.Sobel
-        self.blur_config = cfg.GaussianBlur
-        self.canny_config = cfg.Canny
-        self.hough_config = cfg.HoughLinesP
-        self.eliminate_config = cfg.Eliminate
+        self.cfg = cfg
+        
 
     def detect(self,img:np.ndarray,depth:np.ndarray,vis:bool=True)->list:
         """This function detect stairs lines using and image and depth values
@@ -42,60 +40,53 @@ class StairDetector:
                 list: list of the detected stairs lines
             """        
 
+        # init configs
+        sobel_config = self.cfg.Sobel
+        gauss_config = self.cfg.GaussianBlur
+        canny_config = self.cfg.Canny
+        hough_config = self.cfg.HoughLinesP
+        gabor_config = self.cfg.Gabor
+        bilateral_config = self.cfg.Bilateral
+        eliminate_config = self.cfg.Eliminate
+
         # init params and vars
+        blured, sobeld, canny = None, None, None
         stairs_lines = []
 
-        threshold_sobel = self.sobel_config.thresh     
-
         # pre-process the image
-        # apply gaussian blurring
-        g_ksize = (self.blur_config.ksize,self.blur_config.ksize)
-        sigmaX = self.blur_config.sigmaX
-        sigmaY = self.blur_config.sigmaY
-        blured = cv2.GaussianBlur(img,g_ksize,sigmaX,sigmaY)        # get blured img
-        #https://docs.opencv.org/4.x/d5/d0f/tutorial_py_gradients.html
-        laplacian = cv2.Laplacian(blured,cv2.CV_64F)      # get laplacian img
+        # convert img to gray 
+        img = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
         
-        # apply sobel functions
-        sobel_thresh = self.sobel_config.thresh
-        s_ksize = self.sobel_config.ksize
-        sobelx = cv2.Sobel(blured,cv2.CV_64F,1,0,s_ksize) # get sobelx img
-        sobely = cv2.Sobel(blured,cv2.CV_64F,0,1,s_ksize) # get sobely img
-        
-        # normalized sobel matrice
-        # shift the matrice by the min val
-        sobely_shifted = sobely - np.min(sobely)
-        # scaled the matrice to fall between 0-255
-        sobely_scaled = (sobely_shifted/np.max(sobely_shifted))*255
-        # convert matrice to uint8
-        sobely_u8 = sobely_scaled.astype("uint8")
-        sobely_u8[sobely_u8<sobel_thresh] = 0
+        # get blured img
+        if self.cfg.blur.enable:
+            b_typ = self.cfg.blur.type
+            if b_typ == 0:
+                blured = ih.GaussianBlur(img, gauss_config)
+            elif b_typ == 1:
+                blured = ih.GaborFilter(img, gabor_config)
+            elif b_typ == 2:
+                blured = ih.BilateralFilter(img, bilateral_config)
+            img = blured
 
-        # sobely_abs = np.abs(sobely)
-        # sobely0 = sobely_abs + np.abs(sobely_abs.min())
-        # sobely0 = (sobely0/sobely0.max())*255
-        # sobely0 = sobely0.astype("uint8")
-        # sobely0[sobely0<threshold_sobel] = 0 
-        
+        #https://docs.opencv.org/4.x/d5/d0f/tutorial_py_gradients.html
+        # apply sobel functions
+        if self.cfg.Sobel.enable:
+            sobeld = ih.Sobel(img, sobel_config)
+            img = sobeld
+
         # apply canny edge detection
-        canny_thresh1 = self.canny_config.thresh1
-        canny_thresh2 = self.canny_config.thresh2
-        aperture = self.canny_config.aperture
-        edges = cv2.Canny(sobely_u8, canny_thresh1, canny_thresh2, aperture)
-        
+        if self.cfg.Canny.enable:
+            canny = ih.Canny(img, canny_config)
+            img = canny
+
         # apply Houghline detector
-        minLineLength = self.hough_config.minLineLength
-        maxLineGap = self.hough_config.maxLineGap
-        rho = self.hough_config.rho
-        theta = np.pi/self.hough_config.theta
-        hough_thresh = self.hough_config.thresh
-        lines = cv2.HoughLinesP(edges,rho,theta,hough_thresh,minLineLength,maxLineGap)
-        
-        # eliminate irelevant lines
-        eliminate_top = self.eliminate_config.top
-        eliminate_bottom = self.eliminate_config.bottom
-        eliminate_theta = self.eliminate_config.theta
-        eliminate_depth = self.eliminate_config.depth
+        lines = ih.Hough(img, hough_config)
+
+        # eliminate candidats
+        eliminate_top = eliminate_config.top
+        eliminate_bottom = eliminate_config.bottom
+        eliminate_theta = eliminate_config.theta
+        eliminate_depth = eliminate_config.depth
 
         if lines is not None:           
             for line in lines:
@@ -105,9 +96,11 @@ class StairDetector:
                         if np.rad2deg(np.arctan(m))<eliminate_theta and np.rad2deg(np.arctan(m))>-eliminate_theta and depth[y1,x1]>eliminate_depth and depth[y2,x2]> eliminate_depth and depth[y1,x1]!=np.inf :
                             stairs_lines.append(line) 
         
-        # visualize relevant images
+        # visualize relevant images     
         if vis:
-            self.vis(blured=blured,edges=edges,sobely=sobely)
+            self.vis(blur=blured,
+                        canny=canny,
+                        sobel=sobeld)
 
         return stairs_lines
 
@@ -116,7 +109,8 @@ class StairDetector:
             """        
 
         for image in kwargs.keys():
-            cv2.imshow(image, kwargs[image])
+            if kwargs[image] is not None:
+                cv2.imshow(image, kwargs[image])
         
 class NormalEstimation: # will continue in future work
 
@@ -388,10 +382,10 @@ class AlgoRunner:
 # Use hydra for configuration managing
 @hydra.main(config_path="../../config", config_name = "algo")
 def main(cfg):
-    bag_obj = BagReader('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-11-08-10-07-30.bag')
+    bag_obj = BagReader('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-11-08-10-13-11.bag')
     bag_obj.get_data()
     algo_runner = AlgoRunner(bag_obj,cfg)
     algo_runner.run()
 
 if __name__ == "__main__":
-    main()
+    main() 

@@ -5,37 +5,53 @@ hydra:
 
 StairDetector:
 
-  type:    # which type of detector | 0 = | 1 = | 2 = | need to fill it
-
+  blur:
+    enable: true
+    type: 0         # 0 = gaussian | 1 = gabor | bilateral = 2
+        
 
   Sobel:
-    ksize: 5
-    thresh: 50
+    enable: true
+    ksize: 3
+    thresh: 10  
   
   GaussianBlur:
     ksize: 11
-    sigmaX: 0
-    sigmaY: 0
-  
+    sigmaX: 3
+    sigmaY: 3
+
+  Gabor: 
+    ksize: 7
+    sigma: 1
+    theta: 90
+    lambd: 5
+    gamma: 1
+    psi: 7.8
+
+  Bilateral:
+      d: 5
+      sigmaColor: 30
+      sigmaSpace: 20
+
   Canny:
-    thresh1: 30
-    thresh2: 150
+    enable: true  
+    thresh1: 0
+    thresh2: 30
     aperture: 3
 
   HoughLinesP:
-    minLineLength: 50
+    minLineLength: 20
     maxLineGap: 5
     rho: 1
     theta: 180
-    thresh: 1
+    thresh: 0
 
   Eliminate:
-    top: 10
-    bottom: 240
-    theta: 20
-    depth: 0.3
+    top: 5
+    bottom: 220
+    theta: 30
+    depth: 0.2
 
-  Gabor: # TO DO
 
 NormalEstimation: # TO DO
   
