@@ -57,7 +57,7 @@ NormalEstimation: # TO DO
   
 AlgoRunner:
   save_run: false
-  save_vid: true
+  save_vid: false
   
   IntentRecognition:
     static_thresholds: [0.08,0.95]
