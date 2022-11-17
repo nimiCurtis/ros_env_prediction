@@ -141,7 +141,8 @@ class AlgoRunner:
         
         #init algo config
         self.intent_config = cfg.AlgoRunner.IntentRecognition
-        self.save_run = cfg.AlgoRunner.save_run
+        self._save_run = cfg.AlgoRunner.save_run
+        self._save_vid = cfg.AlgoRunner.save_vid
 
         # init detectors/estimators
         self.stair_detector = StairDetector(cfg.StairDetector)
@@ -310,17 +311,21 @@ class AlgoRunner:
         
         # init buffer for saving data
         algo_buffer = []
-        
+        frame_buffer = []
+
         # iterating the frames
         for step in range(len(self)):
             # set input/output dictionaries
             out_data = {}
             in_data = self.get_current_step(step)
             
+            
             # copy imgs and depth data
             img = in_data["depth_img"].copy()
             depth =  in_data["depth"].copy()
 
+            
+            
             # split depth 
             depth_grid, h_grid, w_grid = dp.split_to_regions(depth)
  
@@ -337,15 +342,18 @@ class AlgoRunner:
             out_data["lines"], out_data["mean"], out_data["std"] = lines, mean_grid, std_grid
             out_data["intent"] = self.intent_recognizer(out_data)
 
+            # update buffer 
+            algo_buffer.append(out_data)         
+            frame_buffer.append(in_data["depth_img"])
             # visualize output
-            self.vis_step(in_data,out_data)
+            self.vis_step(in_data,out_data)   
             
-            # update buffer
-            algo_buffer.append(out_data)
-
         # save output data of this run
-        if self.save_run:
+        if self._save_run:
             self.save_runner(algo_buffer)
+
+        if self._save_vid:    
+            ih.write_video(self.bag_obj.bag_read.datafolder, frame_buffer, 10)
 
     def save_runner(self,algo_buffer):
         pass
@@ -373,11 +381,12 @@ class AlgoRunner:
         cv2.imshow("rgb", in_data["depth_img"])
 
         # 'q' key to stop
-        if cv2.waitKey(33) == ord('q'): 
-            cv2.destroyAllWindows()   
-            raise Exception()
+        if cv2.waitKey(10) & 0xFF == ord('q'): 
+                cv2.destroyAllWindows()   
+                raise Exception()
         else:
-            cv2.waitKey(0)
+            cv2.waitKey(1)
+        
 
 # Use hydra for configuration managing
 @hydra.main(config_path="../../config", config_name = "algo")

@@ -56,7 +56,8 @@ StairDetector:
 NormalEstimation: # TO DO
   
 AlgoRunner:
-  save_run: False
+  save_run: false
+  save_vid: true
   
   IntentRecognition:
     static_thresholds: [0.08,0.95]

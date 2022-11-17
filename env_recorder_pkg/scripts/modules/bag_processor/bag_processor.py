@@ -1,6 +1,7 @@
 # Import libraries
 import os
 from typing import Union
+from datetime import datetime
 import numpy as np
 import pandas as pd
 import cv2
@@ -17,6 +18,8 @@ class ImageHandler():
         # shape and size of the image grid
         self.grid_shape = (3,4)           
         self.number_of_regions = self.grid_shape[0]*self.grid_shape[1]
+        
+        
 
     def split_to_regions(self, img:np.ndarray)-> Union[np.ndarray,np.ndarray,np.ndarray]:
         """This function split generic image matrice to regions
@@ -174,6 +177,23 @@ class ImageHandler():
 
         plt.imshow(img)
         plt.show()
+
+    def write_video(self, folder_path: str, frames: list, fps: float):
+        
+        if not os.path.exists(folder_path+"/video"):
+            os.mkdir(folder_path+"/video")
+        now = datetime.now().strftime("%H-%M-%S")
+        file_path = folder_path+f"/video/{now}.mp4"
+        h, w, _ = frames[0].shape
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        writer = cv2.VideoWriter(file_path, fourcc, fps, (w,h))
+        cv2.VideoWriter()
+        for frame in frames:
+            writer.write(frame)
+
+        writer.release() 
+
+
 
 
 class DepthHandler(ImageHandler):
