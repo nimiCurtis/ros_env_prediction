@@ -28,7 +28,7 @@ class StairDetector:
         self.cfg = cfg
         
 
-    def detect(self,img:np.ndarray,depth:np.ndarray,vis:bool=True)->list:
+    def detect(self,img:np.ndarray, depth:np.ndarray,vis:bool=True)->list:
         """This function detect stairs lines using and image and depth values
 
             Args:
@@ -87,7 +87,8 @@ class StairDetector:
         eliminate_theta = eliminate_config.theta
         eliminate_depth = eliminate_config.depth
 
-        if lines is not None:           
+        if lines is not None:
+            lines = self.small_edges_eliminate(lines)           
             for line in lines:
                 for x1,y1,x2,y2 in line:            
                     if x1 != x2 and ((y1 > eliminate_top and y2 > eliminate_top) and (y1 < eliminate_bottom and y2 < eliminate_bottom)):                   
@@ -95,6 +96,10 @@ class StairDetector:
                         if np.rad2deg(np.arctan(m))<eliminate_theta and np.rad2deg(np.arctan(m))>-eliminate_theta and depth[y1,x1]>eliminate_depth and depth[y2,x2]> eliminate_depth and depth[y1,x1]!=np.inf :
                             stairs_lines.append(line) 
         
+        stairs_lines = self.link_lines(stairs_lines)
+        if len(stairs_lines)>0:
+            stairs_lines = self.small_edges_eliminate(stairs_lines).tolist()
+
         # visualize relevant images     
         if vis:
             self.vis(blur=blured,
@@ -102,6 +107,41 @@ class StairDetector:
                         sobel=sobeld)
 
         return stairs_lines
+
+    def link_lines(self, lines:list, pgap:int=10):
+        link_lines = []
+        
+        for i in range(len(lines)-1):
+            merged = False     
+            xl_i,yl_i,xr_i,yr_i = lines[i][0]
+            for j in range(i+1,len(lines)): 
+                xl_j,yl_j,xr_j,yr_j = lines[j][0]
+                
+                if xl_j>xr_i:
+                    if (np.abs(yl_j-yr_i)<=pgap) and np.abs((xl_j-xr_i))<=pgap:
+                        xr_i,yr_i = xr_j,yr_j
+                        merged = True
+                elif xr_j<xl_i:
+                    if (np.abs(yr_j-yl_i)<=pgap) and np.abs((xr_j-xl_i))<=pgap:
+                        xl_i,yl_i = xl_j,yl_j
+                        merged = True
+
+            if merged==True:
+                link_lines.append([[xl_i,yl_i,xr_i,yr_i]])
+                    
+        
+        return link_lines
+
+    def small_edges_eliminate(self, lines:list):
+        nlines = np.array(lines)
+        p1 = nlines[:,0][:,:2]
+        p2 = nlines[:,0][:,2:]
+        dist = np.linalg.norm(p1-p2,axis=1)
+        max_line = np.max(dist)
+        line_thresh = max_line/2 
+        eliminate = nlines[dist>line_thresh]
+
+        return eliminate
 
     def vis(self,**kwargs):
         """This function visualize relevant images for debug
@@ -322,7 +362,7 @@ class AlgoRunner:
 
             # split depth 
             depth_grid, h_grid, w_grid = dp.split_to_regions(depth)
- 
+
             image_cropped = self.crop_regions(img, h_grid, w_grid) ## need to change cropping function
 
             # extract features
