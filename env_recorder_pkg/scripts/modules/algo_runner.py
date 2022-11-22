@@ -99,6 +99,7 @@ class StairDetector:
         stairs_lines = self.link_lines(stairs_lines)
         if len(stairs_lines)>0:
             stairs_lines = self.small_edges_eliminate(stairs_lines).tolist()
+            
 
         # visualize relevant images     
         if vis:
@@ -126,22 +127,45 @@ class StairDetector:
                         xl_i,yl_i = xl_j,yl_j
                         merged = True
 
-            if merged==True:
-                link_lines.append([[xl_i,yl_i,xr_i,yr_i]])
+            
+            link_lines.append([[xl_i,yl_i,xr_i,yr_i]])
                     
         
         return link_lines
+
+    def get_feature_line(self,lines:list,depth):
+        nlines = np.array(lines)
+        max_line = self.get_max_line(nlines)
+        xmid,ymid = self.get_mid(max_line)
+        feature_vals = depth[:,xmid]
+        feature_index = np.ones((depth.shape[0],2),dtype=np.int16)*xmid
+        feature_index[:,1] = np.arange(0,depth.shape[0])
+        
+        return [feature_vals,feature_index, (xmid,ymid)]
+
 
     def small_edges_eliminate(self, lines:list):
         nlines = np.array(lines)
         p1 = nlines[:,0][:,:2]
         p2 = nlines[:,0][:,2:]
         dist = np.linalg.norm(p1-p2,axis=1)
-        max_line = np.max(dist)
-        line_thresh = max_line/2 
+        max_length = np.max(dist)
+        line_thresh = max_length/2 
         eliminate = nlines[dist>line_thresh]
 
         return eliminate
+
+    def get_max_line(self,lines:np.ndarray):
+        p1 = lines[:,0][:,:2]
+        p2 = lines[:,0][:,2:]
+        dist = np.linalg.norm(p1-p2,axis=1)
+        max_length = np.max(dist)
+        max_line= lines[dist==max_length]
+        return max_line
+    
+    def get_mid(self,line):
+        x1,y1,x2,y2 = line[0][0]
+        return int((x2+x1)/2),int((y2+y1)/2)
 
     def vis(self,**kwargs):
         """This function visualize relevant images for debug
@@ -182,6 +206,7 @@ class AlgoRunner:
         self.intent_config = cfg.AlgoRunner.IntentRecognition
         self._save_run = cfg.AlgoRunner.save_run
         self._save_vid = cfg.AlgoRunner.save_vid
+        self._viz_plot = cfg.AlgoRunner.viz_plot
 
         # init detectors/estimators
         self.stair_detector = StairDetector(cfg.StairDetector)
@@ -376,6 +401,9 @@ class AlgoRunner:
             
             # detect staires lines
             lines = self.stair_detector.detect(img, depth, vis=True)
+            if len(lines)>0:
+                feature_line = self.stair_detector.get_feature_line(lines,depth)
+                out_data["feature_line"] = feature_line
             
             # update output dictionary and apply intent recognition system
             out_data["lines"], out_data["mean"], out_data["std"] = lines, mean_grid, std_grid
@@ -384,8 +412,21 @@ class AlgoRunner:
             # update buffer 
             algo_buffer.append(out_data)         
             frame_buffer.append(in_data["depth_img"])
+            
             # visualize output
-            self.vis_step(in_data,out_data)   
+            self.vis_step(in_data,out_data)
+            # re-drawing the figure
+            cv2.imshow("rgb", in_data["depth_img"])
+            
+            if self._viz_plot:
+                plt.show()
+
+            # 'q' key to stop
+            if cv2.waitKey(10) & 0xFF == ord('q'): 
+                    cv2.destroyAllWindows()   
+                    raise Exception()
+            else:
+                cv2.waitKey(1)   
             
         # save output data of this run
         if self._save_run:
@@ -407,7 +448,7 @@ class AlgoRunner:
         Raises:
             Exception: _description_
         """                
-
+        
         # printing intentiokn state
         print(out_data["intent"])
 
@@ -416,15 +457,13 @@ class AlgoRunner:
             for line in out_data["lines"]:        
                 for x1,y1,x2,y2 in line:            
                     cv2.line(in_data["depth_img"],(x1,y1),(x2,y2),(0,255,0),2)
-
-        cv2.imshow("rgb", in_data["depth_img"])
-
-        # 'q' key to stop
-        if cv2.waitKey(10) & 0xFF == ord('q'): 
-                cv2.destroyAllWindows()   
-                raise Exception()
-        else:
-            cv2.waitKey(1)
+                    pt1 = (out_data["feature_line"][1][0][0],out_data["feature_line"][1][0][1])
+                    pt2 = (out_data["feature_line"][1][-1][0],out_data["feature_line"][1][-1][1])
+                    cv2.line(in_data["depth_img"],pt1,pt2,(255,0,0),1)
+                    plt.plot(out_data["feature_line"][1][:,1],out_data["feature_line"][0],'b')
+        
+        
+        
         
 
 # Use hydra for configuration managing

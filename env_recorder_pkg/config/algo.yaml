@@ -58,10 +58,11 @@ NormalEstimation: # TO DO
 AlgoRunner:
   save_run: false
   save_vid: false
+  viz_plot: false
   
   IntentRecognition:
     static_thresholds: [0.08,0.95]
     dynamic_thresholds:
-      sa: -2.5
-      sd: 2.5
+      sa: -3
+      sd: 3
 
