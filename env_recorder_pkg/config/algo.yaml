@@ -7,21 +7,21 @@ StairDetector:
 
   blur:
     enable: true
-    type: 0         # 0 = gaussian | 1 = gabor | bilateral = 2
+    type: 1         # 0 = gaussian | 1 = gabor | bilateral = 2
         
 
   Sobel:
     enable: true
-    ksize: 3
-    thresh: 10  
+    ksize: 9
+    thresh: 100  
   
   GaussianBlur:
-    ksize: 11
+    ksize: 9
     sigmaX: 3
     sigmaY: 3
 
   Gabor: 
-    ksize: 7
+    ksize: 5
     sigma: 1
     theta: 90
     lambd: 5
@@ -34,23 +34,23 @@ StairDetector:
       sigmaSpace: 20
 
   Canny:
-    enable: true  
-    thresh1: 0
-    thresh2: 30
+    enable: True  
+    thresh1: 20
+    thresh2: 150
     aperture: 3
 
   HoughLinesP:
-    minLineLength: 20
+    minLineLength: 100
     maxLineGap: 5
     rho: 1
-    theta: 180
+    theta: 120
     thresh: 0
 
   Eliminate:
-    top: 5
+    top: 15
     bottom: 220
-    theta: 30
-    depth: 0.2
+    theta: 20
+    depth: 0.3
 
 
 NormalEstimation: # TO DO
