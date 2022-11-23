@@ -143,6 +143,18 @@ class StairDetector:
         
         return [feature_vals,feature_index, (xmid,ymid)]
 
+    def get_feature_region(self,lines:list,depth):
+        nlines = np.array(lines)
+        max_line = self.get_max_line(nlines)
+        xmid,ymid = self.get_mid(max_line)
+
+        feature_vals = depth[:,xmid-5:xmid+5]
+        feature_vals = feature_vals.mean(axis=1)
+
+        feature_index = np.ones((depth.shape[0],2),dtype=np.int16)*xmid
+        feature_index[:,1] = np.arange(0,depth.shape[0])
+        
+        return [feature_vals,feature_index, (xmid,ymid)]
 
     def small_edges_eliminate(self, lines:list):
         nlines = np.array(lines)
@@ -402,7 +414,7 @@ class AlgoRunner:
             # detect staires lines
             lines = self.stair_detector.detect(img, depth, vis=True)
             if len(lines)>0:
-                feature_line = self.stair_detector.get_feature_line(lines,depth)
+                feature_line = self.stair_detector.get_feature_region(lines,depth)
                 out_data["feature_line"] = feature_line
             
             # update output dictionary and apply intent recognition system
