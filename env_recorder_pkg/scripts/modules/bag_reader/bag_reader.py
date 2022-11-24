@@ -4,6 +4,7 @@ from bagpy import bagreader
 import numpy as np
 import pandas as pd
 import json
+from functools import reduce
 
 # extracting images dependendcies
 import os
@@ -91,12 +92,15 @@ class BagReader():
             if (topic_row['Types']=='sensor_msgs/Imu') and  topic_row['Message Count']!=0: # stop when topic is the imu topic and its not empty
                     imu_file = self.bag_read.message_by_topic(topic_row['Topics']) # create the csv file  
                     self.imu_df = pd.read_csv(imu_file) # set the df
+                    self.imu_df.drop_duplicates(subset=['header.stamp.secs','header.stamp.nsecs'],ignore_index=True,inplace=True)
+                    self.imu_df.to_csv(imu_file) # rewrite imu csv
                     self.MetaData["imu"] = imu_file # save the path to metadata
+#df = pd.merge(bag_obj.imu_df,bag_obj.depth_df[["header.stamp.secs","header.stamp.nsecs","np_path","frame_path"]],on=["header.stamp.secs","header.stamp.nsecs"],how="right")
 
             if ((topic_row['Types']=='sensor_msgs/Image')or(topic_row['Types']=='stereo_msgs/DisparityImage')) and  topic_row['Message Count']!=0: # stop when topic is Image/Stereo kind and its not empty
                 self.init_image_df(topic_row['Topics']) 
         
-        # cahng exported status and dump MetaData to a json file
+        # change exported status and dump MetaData to a json file
         self.MetaData["exported"] = True
         with open(self.metadata_file, "w") as json_file:
             json.dump(self.MetaData, json_file, indent=3)
@@ -153,10 +157,10 @@ class BagReader():
         # create csv temp file using the bagreader library - temporarily because it deosnt handle good with imgs 
         tmp_file = self.bag_read.message_by_topic(topic)
         df = pd.read_csv(tmp_file)
-        if (img_type != 'disparity'):
-            df.drop('data',inplace = True , axis =1) # drop the data column because its containing garbage data 
-        else: 
-            df.drop('image.data',inplace = True , axis =1) # drop image.data column from disparity df
+        if (img_type == 'disparity'):
+            df.columns = df.columns.str.replace('image.','') # rename disparity columns starting with 'image.'
+        df.drop('data',inplace = True , axis =1) # drop the data column because its containing garbage data
+
 
         if img_type == 'rgb' : # if rgb save only frame paths
             df['frame_path'], _ = self.extract_images(topic, dir, img_type)
@@ -276,10 +280,16 @@ class BagReader():
 
         return cv2.cvtColor(colormap_disparity, cv2.COLOR_BGR2RGB)                # convert to rgb --> red = close dist, blue = far dist
 
-    def get_synced_df(self):
-    # make a df depend on timestamp
-        pass
+    def get_synced_df(self,dfs):
+        cols = ['np_path', 'frame_path']
+        df_sync = dfs[0]
+        for df in dfs[1:]:
+            key = [k for k, v in dic.items() if v == df]
+            df = df.rename(columns={c: c+f'_{key}' for c in df.columns if c in cols})
+            df_sync = pd.merge(df_sync,df[["header.stamp.secs","header.stamp.nsecs",f"np_path_{key}",f"frame_path_{key}"]],on=["header.stamp.secs","header.stamp.nsecs"],how="right")    
+        return df
 
 if __name__ == '__main__':
     bag_obj = BagReader('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-11-08-10-07-30.bag')
     bag_obj.get_data()
+    a=1
