@@ -8,17 +8,16 @@ StairDetector:
   blur:
     enable: true
     type: 1         # 0 = gaussian | 1 = gabor | bilateral = 2
-        
 
   Sobel:
-    enable: true
+    enable: false
     ksize: 9
     thresh: 100  
   
   GaussianBlur:
-    ksize: 9
-    sigmaX: 3
-    sigmaY: 3
+    ksize: 5
+    sigmaX: 0
+    sigmaY: 0
 
   Gabor: 
     ksize: 5
@@ -34,7 +33,7 @@ StairDetector:
       sigmaSpace: 20
 
   Canny:
-    enable: True  
+    enable: True 
     thresh1: 20
     thresh2: 150
     aperture: 3
@@ -58,11 +57,11 @@ NormalEstimation: # TO DO
 AlgoRunner:
   save_run: false
   save_vid: false
-  viz_plot: True
+  viz_plot: false
   
   IntentRecognition:
-    static_thresholds: [0.08,0.95]
+    static_thresholds: [0.3,2]
     dynamic_thresholds:
-      sa: -3
-      sd: 3
+      sa: -4
+      sd: 4
 

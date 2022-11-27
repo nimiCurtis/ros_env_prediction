@@ -150,6 +150,21 @@ class ImageHandler():
         lines = cv2.HoughLinesP(img, rho, theta, hough_thresh, minLineLength, maxLineGap)
 
         return lines
+    
+    def get_depth_normalization(self, img):
+        """Normalize the depth image to fall between 0 (black) and 1 (white)
+
+        Args:
+            img (numpy array): image matrice to be normalized
+
+        Returns:
+            img (numpy array): normalized image
+        """        
+        
+        cv2.normalize(img, img, 0, 1, cv2.NORM_MINMAX)
+        img = img*255
+        
+        return img
 
     def imshow_with_grid(self,img_path, color=(0, 255, 0), thickness=1):
         """This function show image with the grid 

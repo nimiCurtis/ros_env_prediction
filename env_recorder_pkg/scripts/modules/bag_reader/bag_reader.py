@@ -191,10 +191,10 @@ class BagReader():
 
                 if (img_type == "depth"):
                     #values_array = values_array/1000.0 # convert to meters
-                    cv_img = self.get_depth_normalization(values_array) # get normalized image of depth values
+                    cv_img = self.get_depth_normalization(values_array.copy()) # get normalized image of depth values
 
                 if (img_type == "disparity"):
-                    cv_img = self.get_disparity_colormap(values_array,msg) # get color map of dispatity values
+                    cv_img = self.get_disparity_colormap(values_array.copy(),msg) # get color map of dispatity values
                 
             else:
                 values_array = np.array(cv_img, dtype=np.int32)
@@ -271,6 +271,6 @@ class BagReader():
         return df_sync
 
 if __name__ == '__main__':
-    bag_obj = BagReader('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-11-08-10-07-30.bag')
+    bag_obj = BagReader('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-11-08-10-13-11.bag')
     bag_obj.get_data()
     a=1

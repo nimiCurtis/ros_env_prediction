@@ -4,6 +4,7 @@ from omegaconf import DictConfig
 from typing import Union
 import cv2
 import numpy as np
+import scipy.signal as ss
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -60,11 +61,12 @@ class StairDetector:
         if self.cfg.blur.enable:
             b_typ = self.cfg.blur.type
             if b_typ == 0:
-                blured = ih.GaussianBlur(img, gauss_config)
+                #blured = ss.medfilt2d(img.copy(),5)
+                blured = ih.GaussianBlur(depth.copy(), gauss_config)
             elif b_typ == 1:
-                blured = ih.GaborFilter(img, gabor_config)
+                blured = ih.GaborFilter(img.copy(), gabor_config)
             elif b_typ == 2:
-                blured = ih.BilateralFilter(img, bilateral_config)
+                blured = ih.BilateralFilter(img.copy(), bilateral_config)
             img = blured
 
         #https://docs.opencv.org/4.x/d5/d0f/tutorial_py_gradients.html
@@ -91,9 +93,9 @@ class StairDetector:
             lines = self.small_edges_eliminate(lines)           
             for line in lines:
                 for x1,y1,x2,y2 in line:            
-                    if x1 != x2 and ((y1 > eliminate_top and y2 > eliminate_top) and (y1 < eliminate_bottom and y2 < eliminate_bottom)):                   
+                    if (x1 != x2) and ((y1 > eliminate_top and y2 > eliminate_top) and (y1 < eliminate_bottom and y2 < eliminate_bottom)) and (x1 > 200 and x2>200) and (x1 < 400 and x2<400):                   
                         m = (y1-y2)/(x1-x2)                    
-                        if np.rad2deg(np.arctan(m))<eliminate_theta and np.rad2deg(np.arctan(m))>-eliminate_theta and depth[y1,x1]>eliminate_depth and depth[y2,x2]> eliminate_depth and depth[y1,x1]!=np.inf :
+                        if np.rad2deg(np.arctan(m))<eliminate_theta and np.rad2deg(np.arctan(m))>-eliminate_theta and depth[y1,x1]>eliminate_depth and depth[y1,x1] < 1.8 and depth[y2,x2]> eliminate_depth and depth[y1,x1]!=np.inf :
                             stairs_lines.append(line) 
         
         stairs_lines = self.link_lines(stairs_lines)
@@ -229,7 +231,7 @@ class AlgoRunner:
         self.dynamic_thresholds = {} 
         
     def __len__(self): ## need to change 
-        return len(self.bag_obj.depth_df)
+        return len(self.bag_obj.dfs["depth"])
 
     def get_current_step(self, step:int)->dict:
         """This function insert input data into a dictionary
@@ -242,8 +244,8 @@ class AlgoRunner:
             """        
         
         in_data = {}
-        in_data["depth"] = np.load(self.bag_obj.depth_df.np_path[step])
-        in_data["depth_img"] = cv2.imread(self.bag_obj.depth_df.frame_path[step])
+        in_data["depth"] = np.load(self.bag_obj.dfs["depth"].np_path[step])
+        in_data["depth_img"] = cv2.imread(self.bag_obj.dfs["depth"].frame_path[step])
         
         return in_data
 
@@ -398,14 +400,14 @@ class AlgoRunner:
             
             # copy imgs and depth data
             img = in_data["depth_img"].copy()
-            depth =  in_data["depth"].copy()
-
+            depth =  dp.mm2meter(in_data["depth"].copy()) ## change in releas to be depend on config
+            
             
             
             # split depth 
             depth_grid, h_grid, w_grid = dp.split_to_regions(depth)
 
-            image_cropped = self.crop_regions(img, h_grid, w_grid) ## need to change cropping function
+            #image_cropped = self.crop_regions(img, h_grid, w_grid) ## need to change cropping function
 
             # extract features
             mean_grid = dp.get_regions_mean(depth_grid)    
@@ -414,7 +416,8 @@ class AlgoRunner:
             # detect staires lines
             lines = self.stair_detector.detect(img, depth, vis=True)
             if len(lines)>0:
-                feature_line = self.stair_detector.get_feature_region(lines,depth)
+                d = ss.medfilt2d(depth.copy(),11)
+                feature_line = self.stair_detector.get_feature_region(lines,d)
                 out_data["feature_line"] = feature_line
             
             # update output dictionary and apply intent recognition system
@@ -430,15 +433,17 @@ class AlgoRunner:
             # re-drawing the figure
             cv2.imshow("rgb", in_data["depth_img"])
             
-            if self._viz_plot:
-                plt.show()
+            
 
             # 'q' key to stop
             if cv2.waitKey(10) & 0xFF == ord('q'): 
                     cv2.destroyAllWindows()   
                     raise Exception()
             else:
-                cv2.waitKey(1)   
+                cv2.waitKey(1) 
+            
+            if self._viz_plot:
+                plt.show()
             
         # save output data of this run
         if self._save_run:
@@ -462,6 +467,7 @@ class AlgoRunner:
         """                
         
         # printing intentiokn state
+
         print(out_data["intent"])
 
         # plot staires lines 
@@ -472,7 +478,7 @@ class AlgoRunner:
                     pt1 = (out_data["feature_line"][1][0][0],out_data["feature_line"][1][0][1])
                     pt2 = (out_data["feature_line"][1][-1][0],out_data["feature_line"][1][-1][1])
                     cv2.line(in_data["depth_img"],pt1,pt2,(255,0,0),1)
-                    plt.plot(out_data["feature_line"][1][:,1],out_data["feature_line"][0],'b')
+                    plt.plot(out_data["feature_line"][1][:,1],out_data["feature_line"][0][::-1],'b')
         
         
         
