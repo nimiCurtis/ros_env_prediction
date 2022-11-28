@@ -193,12 +193,12 @@ class ImageHandler():
         plt.imshow(img)
         plt.show()
 
-    def write_video(self, folder_path: str, frames: list, fps: float):
+    def write_video(self, folder_path: str,file_name: str, frames: list, fps: float):
         
         if not os.path.exists(folder_path+"/video"):
             os.mkdir(folder_path+"/video")
         now = datetime.now().strftime("%H-%M-%S")
-        file_path = folder_path+f"/video/{now}.mp4"
+        file_path = folder_path+f"/video/{now}_"+file_name+".mp4"
         h, w, _ = frames[0].shape
         fourcc = cv2.VideoWriter_fourcc(*"mp4v")
         writer = cv2.VideoWriter(file_path, fourcc, fps, (w,h))

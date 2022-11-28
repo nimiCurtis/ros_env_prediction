@@ -2,66 +2,61 @@ hydra:
   run:
     #dir:  /home/zion/catkin_ws/src/ros_env_prediction/env_recorder_pkg/config/algo_configs/${now:%Y-%m-%d}/${now:%H-%M-%S}
     dir: /home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/config/algo_configs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  sweep: 
+    dir: /home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/config/algo_configs/multirun/${now:%Y-%m-%d}/${now:%H-%M-%S}
+    subdir: ${hydra.job.num}
 
 StairDetector:
-
   blur:
     enable: true
-    type: 1         # 0 = gaussian | 1 = gabor | bilateral = 2
-
-  Sobel:
-    enable: false
-    ksize: 9
-    thresh: 100  
-  
+    type: 0
   GaussianBlur:
-    ksize: 5
-    sigmaX: 0
-    sigmaY: 0
-
-  Gabor: 
-    ksize: 5
-    sigma: 1
+    ksize: 11
+    sigmaX: 1
+    sigmaY: 1
+  Gabor:
+    ksize: 7
+    sigma: 1.6
     theta: 90
     lambd: 5
     gamma: 1
-    psi: 7.8
-
+    psi: 9.5
   Bilateral:
-      d: 5
-      sigmaColor: 30
-      sigmaSpace: 20
-
+    d: 5
+    sigmaColor: 30
+    sigmaSpace: 20
+  Sobel:
+    enable: true
+    ksize: 3
+    thresh: 120
   Canny:
-    enable: True 
-    thresh1: 20
-    thresh2: 150
+    enable: true
+    thresh1: 100
+    thresh2: 250
     aperture: 3
-
   HoughLinesP:
     minLineLength: 100
-    maxLineGap: 5
+    maxLineGap: 3
     rho: 1
-    theta: 120
-    thresh: 0
-
+    theta: 180
+    thresh: 10
   Eliminate:
-    top: 15
-    bottom: 220
+    top: 20
+    bottom: 240
+    right: 440
+    left: 200
     theta: 20
-    depth: 0.3
-
-
-NormalEstimation: # TO DO
-  
+    depth: 0.15
+NormalEstimation: null
 AlgoRunner:
   save_run: false
-  save_vid: false
+  save_vid: true
   viz_plot: false
-  
+  vid_name: default
   IntentRecognition:
-    static_thresholds: [0.3,2]
+    static_thresholds:
+    - 0.3
+    - 2
     dynamic_thresholds:
       sa: -4
       sd: 4
-
