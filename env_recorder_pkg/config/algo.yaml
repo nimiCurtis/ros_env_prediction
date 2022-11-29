@@ -11,9 +11,9 @@ StairDetector:
     enable: true
     type: 0
   GaussianBlur:
-    ksize: 11
-    sigmaX: 1
-    sigmaY: 1
+    ksize: 15
+    sigmaX: 3
+    sigmaY: 3
   Gabor:
     ksize: 7
     sigma: 1.6
@@ -28,7 +28,7 @@ StairDetector:
   Sobel:
     enable: true
     ksize: 3
-    thresh: 120
+    thresh: 80
   Canny:
     enable: true
     thresh1: 100
@@ -42,7 +42,7 @@ StairDetector:
     thresh: 10
   Eliminate:
     top: 20
-    bottom: 240
+    bottom: 300
     right: 440
     left: 200
     theta: 20
@@ -50,8 +50,8 @@ StairDetector:
 NormalEstimation: null
 AlgoRunner:
   save_run: false
-  save_vid: true
-  viz_plot: false
+  save_vid: false
+  viz_plot: true
   vid_name: default
   IntentRecognition:
     static_thresholds:

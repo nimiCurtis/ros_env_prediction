@@ -138,8 +138,8 @@ class StairDetector:
 
             
             link_lines.append([[xl_i,yl_i,xr_i,yr_i]])
-                    
-        
+
+
         return link_lines
 
     def get_feature_line(self,lines:list,depth):
@@ -149,7 +149,7 @@ class StairDetector:
         feature_vals = depth[:,xmid]
         feature_index = np.ones((depth.shape[0],2),dtype=np.int16)*xmid
         feature_index[:,1] = np.arange(0,depth.shape[0])
-        
+
         return [feature_vals,feature_index, (xmid,ymid)]
 
     def get_feature_region(self,lines:list,depth):
@@ -159,9 +159,9 @@ class StairDetector:
 
         feature_vals = depth[:,xmid-5:xmid+5]
         feature_vals = feature_vals.mean(axis=1)
-
-        feature_index = np.ones((depth.shape[0],2),dtype=np.int16)*xmid
-        feature_index[:,1] = np.arange(0,depth.shape[0])
+        feature_vals = feature_vals[feature_vals!=0]
+        feature_index = np.ones((feature_vals.shape[0],2),dtype=np.int16)*xmid
+        feature_index[:,1] = np.arange(0,feature_vals.shape[0])
         
         return [feature_vals,feature_index, (xmid,ymid)]
 
@@ -421,8 +421,8 @@ class AlgoRunner:
             # detect staires lines
             lines = self.stair_detector.detect(img, depth, vis=True)
             if len(lines)>0:
-                d = ss.medfilt2d(depth.copy(),7)
-                feature_line = self.stair_detector.get_feature_region(lines,d)
+                #d = ss.medfilt2d(depth.copy(),3)
+                feature_line = self.stair_detector.get_feature_region(lines,depth)
                 out_data["feature_line"] = feature_line
 
             # update output dictionary and apply intent recognition system
@@ -432,7 +432,7 @@ class AlgoRunner:
             # update buffer 
             algo_buffer.append(out_data)         
             frame_buffer.append(in_data["depth_img"])
-            
+
             # visualize output
             self.vis_step(in_data,out_data)
             # re-drawing the figure
@@ -477,6 +477,7 @@ class AlgoRunner:
         print(out_data["intent"])
 
         # plot staires lines 
+        #plt.ylim((0,5))
         if out_data["lines"] is not None:           
             for line in out_data["lines"]:        
                 for x1,y1,x2,y2 in line:            
@@ -485,10 +486,7 @@ class AlgoRunner:
                     pt2 = (out_data["feature_line"][1][-1][0],out_data["feature_line"][1][-1][1])
                     cv2.line(in_data["depth_img"],pt1,pt2,(255,0,0),1)
                     plt.plot(out_data["feature_line"][1][:,1],out_data["feature_line"][0][::-1],'b')
-        
-        
-        
-        
+                    plt.ylim((0,3))
 
 # Use hydra for configuration managing
 @hydra.main(version_base=None, config_path="../../config", config_name = "algo")
