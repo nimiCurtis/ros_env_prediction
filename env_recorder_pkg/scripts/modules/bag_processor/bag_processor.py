@@ -150,22 +150,9 @@ class ImageHandler():
         lines = cv2.HoughLinesP(img, rho, theta, hough_thresh, minLineLength, maxLineGap)
 
         return lines
+
+
     
-    def get_depth_normalization(self, img):
-        """Normalize the depth image to fall between 0 (black) and 1 (white)
-
-        Args:
-            img (numpy array): image matrice to be normalized
-
-        Returns:
-            img (numpy array): normalized image
-        """        
-        
-        cv2.normalize(img, img, 0, 1, cv2.NORM_MINMAX)
-        img = img*255
-        
-        return img
-
     def imshow_with_grid(self,img_path, color=(0, 255, 0), thickness=1):
         """This function show image with the grid 
 
@@ -316,6 +303,77 @@ class DepthHandler(ImageHandler):
         feat_df["mean"], feat_df["std"] = self.extract_depth_features_batch(df)
 
         return feat_df
+
+    def get_max_line(self,lines:np.ndarray):
+        p1 = lines[:,:2]
+        p2 = lines[:,2:]
+        dist = np.linalg.norm(p1-p2,axis=1)
+        max_length = np.max(dist)
+        max_line = lines[dist==max_length]
+        return max_line 
+    
+    def get_mid(self,line):
+        x1,y1,x2,y2 = line
+        return int((x2+x1)/2),int((y2+y1)/2)
+
+    def get_feature_line(self,lines:np.ndarray,depth):
+        
+        max_line = self.get_max_line(lines)
+        xmid,ymid = self.get_mid(max_line[0])
+        feature_vals = depth[:,xmid]
+        feature_index = np.ones((feature_vals.shape[0],2),dtype=np.int16)*xmid
+        feature_index[:,1] = np.arange(0,feature_vals.shape[0])
+
+        return [feature_vals,feature_index, (xmid,ymid)]
+
+    def get_feature_region(self,lines:np.ndarray,depth):
+        max_line = self.get_max_line(lines)
+        xmid,ymid = self.get_mid(max_line[0])
+
+        feature_vals = depth[:,xmid-5:xmid+5]
+        feature_vals = feature_vals.mean(axis=1)
+        #feature_vals = feature_vals[feature_vals!=0]
+        feature_index = np.ones((feature_vals.shape[0],2),dtype=np.int16)*xmid
+        feature_index[:,1] = np.arange(0,feature_vals.shape[0])
+        
+        return [feature_vals,feature_index, (xmid,ymid)]
+
+    def get_depth_normalization(self, img):
+        """Normalize the depth image to fall between 0 (black) and 1 (white)
+
+        Args:
+            img (numpy array): image matrice to be normalized
+
+        Returns:
+            img (numpy array): normalized image
+        """        
+        img_clone = img.copy() # make a copy of the values because cv2 only make a view and changing source
+
+        cv2.normalize(img_clone, img_clone, 0, 1, cv2.NORM_MINMAX)
+        img_clone = img_clone*255
+        
+        return img_clone
+    
+    def get_disparity_colormap(self,img, min_disparity,max_disparity):
+        """Get 
+
+            Args:
+                values_array (numpy array): image disparity values
+                msg (stereo_msgs/Disparity): ROS msg of type Disparity. see: http://docs.ros.org/en/melodic/api/stereo_msgs/html/msg/DisparityImage.html
+
+            Returns:
+                (numpy array): color map image of the disparity values
+            """        
+        img_clone = img.copy() # make a copy of the values because cv2 only make a view and changing source
+        normal_dist = max_disparity - min_disparity
+        shifted_disparity = (img_clone - min_disparity)                    # shift values to get rid from negetive vals | current_min = 0
+        scaled_disparity = (shifted_disparity*255)/normal_dist            # normalize to fall between (0,255) 
+        scaled_disparity = np.clip(scaled_disparity,0,255)                        # clip , not sure if totaly necssary
+        scaled_disparity = scaled_disparity.astype(np.uint8)                      # change format 
+        colormap_disparity= cv2.applyColorMap(scaled_disparity,cv2.COLORMAP_JET)  # apply colormap
+
+        return cv2.cvtColor(colormap_disparity, cv2.COLOR_BGR2RGB)                # convert to rgb --> red = close dist, blue = far dist
+
 
 def main(): 
     pass

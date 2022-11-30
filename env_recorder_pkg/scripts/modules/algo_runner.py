@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 # import bag reader and processor modules
 from bag_reader.bag_reader import BagReader
-from bag_processor.bag_processor import DepthHandler, ImageHandler
+from bag_processor import DepthHandler, ImageHandler
 dp = DepthHandler()
 ih = ImageHandler()
 
@@ -57,17 +57,17 @@ class StairDetector:
         # pre-process the image
         # convert img to gray 
         img = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
-        
+
         # get blured img
         if self.cfg.blur.enable:
             b_typ = self.cfg.blur.type
             if b_typ == 0:
                 #blured = ss.medfilt2d(img.copy(),5)
-                blured = ih.GaussianBlur(img.copy(), gauss_config)
+                blured = ih.GaussianBlur(img, gauss_config)
             elif b_typ == 1:
-                blured = ih.GaborFilter(img.copy(), gabor_config)
+                blured = ih.GaborFilter(img, gabor_config)
             elif b_typ == 2:
-                blured = ih.BilateralFilter(img.copy(), bilateral_config)
+                blured = ih.BilateralFilter(img, bilateral_config)
             img = blured
 
         #https://docs.opencv.org/4.x/d5/d0f/tutorial_py_gradients.html
@@ -87,28 +87,26 @@ class StairDetector:
         lines = ih.Hough(img, hough_config)
 
         # eliminate candidats
-        eliminate_top = eliminate_config.top
-        eliminate_bottom = eliminate_config.bottom
-        eliminate_right = eliminate_config.right
-        eliminate_left = eliminate_config.left
-        eliminate_theta = eliminate_config.theta
-        eliminate_depth = eliminate_config.depth
+        elim_top_bot = eliminate_config.top_bottom
+        elim_sides = eliminate_config.sides
+        elim_theta = eliminate_config.theta
+        elim_depth = eliminate_config.depth
 
         if lines is not None:
             #lines = self.small_edges_eliminate(lines)           
             for line in lines:
                 for x1,y1,x2,y2 in line:            
-                    if (x1 != x2) and ((y1 > eliminate_top and y2 > eliminate_top) and (y1 < eliminate_bottom and y2 < eliminate_bottom)) and (x1 > eliminate_left and x2>eliminate_left) and (x1 < eliminate_right and x2<eliminate_right):                   
+                    if (x1 != x2) and ((y1 > elim_top_bot[0] and y2 > elim_top_bot[0]) and (y1 < elim_top_bot[1] and y2 < elim_top_bot[1])) and (x1 > elim_sides[1] and x2>elim_sides[1]) and (x1 < elim_sides[0] and x2 < elim_sides[0]):                   
                         m = (y1-y2)/(x1-x2)                    
-                        if np.rad2deg(np.arctan(m))<eliminate_theta and np.rad2deg(np.arctan(m))>-eliminate_theta and depth[y1,x1]>eliminate_depth and depth[y1,x1] < 1.4 and depth[y2,x2]> eliminate_depth and depth[y1,x1]!=np.inf :
-                            stairs_lines.append(line) 
+                        if np.rad2deg(np.arctan(m))<elim_theta and np.rad2deg(np.arctan(m))>-elim_theta and depth[y1,x1]>elim_depth[0] and depth[y1,x1] < elim_depth[1] and depth[y2,x2]> elim_depth[0] and depth[y1,x1]!=np.inf :
+                            stairs_lines.append(line[0]) 
+        
+        
         
         stairs_lines = self.link_lines(stairs_lines)
-        
-        
+
         if len(stairs_lines)>0:
-            stairs_lines = self.small_edges_eliminate(depth,stairs_lines).tolist()
-            
+            stairs_lines = self.small_edges_eliminate(depth,stairs_lines)
 
         # visualize relevant images     
         if vis:
@@ -123,9 +121,9 @@ class StairDetector:
         
         for i in range(len(lines)-1):
 
-            xl_i,yl_i,xr_i,yr_i = lines[i][0]
+            xl_i,yl_i,xr_i,yr_i = lines[i]
             for j in range(i+1,len(lines)): 
-                xl_j,yl_j,xr_j,yr_j = lines[j][0]
+                xl_j,yl_j,xr_j,yr_j = lines[j]
                 
                 if xl_j>xr_i:
                     if (np.abs(yl_j-yr_i)<=pgap) and np.abs((xl_j-xr_i))<=pgap:
@@ -137,38 +135,14 @@ class StairDetector:
                         
 
             
-            link_lines.append([[xl_i,yl_i,xr_i,yr_i]])
-
+            link_lines.append(np.array((xl_i,yl_i,xr_i,yr_i)))
 
         return link_lines
 
-    def get_feature_line(self,lines:list,depth):
-        nlines = np.array(lines)
-        max_line = self.get_max_line(nlines)
-        xmid,ymid = self.get_mid(max_line)
-        feature_vals = depth[:,xmid]
-        feature_index = np.ones((depth.shape[0],2),dtype=np.int16)*xmid
-        feature_index[:,1] = np.arange(0,depth.shape[0])
-
-        return [feature_vals,feature_index, (xmid,ymid)]
-
-    def get_feature_region(self,lines:list,depth):
-        nlines = np.array(lines)
-        max_line = self.get_max_line(nlines)
-        xmid,ymid = self.get_mid(max_line)
-
-        feature_vals = depth[:,xmid-5:xmid+5]
-        feature_vals = feature_vals.mean(axis=1)
-        feature_vals = feature_vals[feature_vals!=0]
-        feature_index = np.ones((feature_vals.shape[0],2),dtype=np.int16)*xmid
-        feature_index[:,1] = np.arange(0,feature_vals.shape[0])
-        
-        return [feature_vals,feature_index, (xmid,ymid)]
-
     def small_edges_eliminate(self,depth, lines:list):
         nlines = np.array(lines)
-        p1 = nlines[:,0][:,:2]
-        p2 = nlines[:,0][:,2:]
+        p1 = nlines[:,:2]
+        p2 = nlines[:,2:]
         dist = np.linalg.norm(p1-p2,axis=1)
         max_length = np.max(dist)
         self.max_line = max(max_length,self.max_line)
@@ -177,17 +151,7 @@ class StairDetector:
 
         return eliminate
 
-    def get_max_line(self,lines:np.ndarray):
-        p1 = lines[:,0][:,:2]
-        p2 = lines[:,0][:,2:]
-        dist = np.linalg.norm(p1-p2,axis=1)
-        max_length = np.max(dist)
-        max_line= lines[dist==max_length]
-        return max_line 
-    
-    def get_mid(self,line):
-        x1,y1,x2,y2 = line[0][0]
-        return int((x2+x1)/2),int((y2+y1)/2)
+
 
     def vis(self,**kwargs):
         """This function visualize relevant images for debug
@@ -213,16 +177,16 @@ class NormalEstimation: # will continue in future work
 
 class AlgoRunner:
 
-    def __init__(self,bag_obj:BagReader,cfg:DictConfig ):
-        """AlgoRunner constructor
+    def __init__(self,dfs:dict,cfg:DictConfig ):
 
+        """AlgoRunner constructor
         Args:
             bag_obj (BagReader): bag object
             cfg (DictConfig): config dictionary
         """        
 
         # init bag object
-        self.bag_obj = bag_obj
+        self._dfs = dfs
         
         #init algo config
         self.intent_config = cfg.AlgoRunner.IntentRecognition
@@ -230,6 +194,7 @@ class AlgoRunner:
         self._save_vid = cfg.AlgoRunner.save_vid
         self._viz_plot = cfg.AlgoRunner.viz_plot
         self._vid_name = cfg.AlgoRunner.vid_name
+        self._viz_debug = cfg.AlgoRunner.viz_debug
 
         # init detectors/estimators
         self.stair_detector = StairDetector(cfg.StairDetector)
@@ -240,7 +205,7 @@ class AlgoRunner:
         self.dynamic_thresholds = {} 
         
     def __len__(self): ## need to change 
-        return len(self.bag_obj.dfs["depth"])
+        return len(self._dfs["depth"])
 
     def get_current_step(self, step:int)->dict:
         """This function insert input data into a dictionary
@@ -251,11 +216,11 @@ class AlgoRunner:
             Returns:
                 dict: input dict
             """        
-        
+
         in_data = {}
-        in_data["depth"] = np.load(self.bag_obj.dfs["depth"].np_path[step])
-        in_data["depth_img"] = cv2.imread(self.bag_obj.dfs["rgb"].frame_path[step])
-        
+        in_data["depth"] = np.load(self._dfs["depth"].np_path[step])
+        in_data["depth_img"] = cv2.imread(self._dfs["rgb"].frame_path[step])
+
         return in_data
 
     def crop_regions(self,img,h_grid, w_grid): ## need to change function
@@ -406,23 +371,20 @@ class AlgoRunner:
 
             # copy imgs and depth data
             img = in_data["depth_img"].copy()
-            depth =  dp.mm2meter(in_data["depth"].copy()) ## change in releas to be depend on config
+            depth =  dp.mm2meter(in_data["depth"].copy()) ## change in release to be depend on config
 
             # split depth 
             depth_grid, h_grid, w_grid = dp.split_to_regions(depth)
-
-            # depth_cropped = self.crop_regions(depth, h_grid, w_grid) 
-            # image_cropped = self.crop_regions(img, h_grid, w_grid) ## need to change cropping function
 
             # extract features
             mean_grid = dp.get_regions_mean(depth_grid)    
             std_grid = dp.get_regions_std(depth_grid)
 
             # detect staires lines
-            lines = self.stair_detector.detect(img, depth, vis=True)
+            lines = self.stair_detector.detect(img, depth, vis=self._viz_debug)
             if len(lines)>0:
                 #d = ss.medfilt2d(depth.copy(),3)
-                feature_line = self.stair_detector.get_feature_region(lines,depth)
+                feature_line = dp.get_feature_region(lines,depth)
                 out_data["feature_line"] = feature_line
 
             # update output dictionary and apply intent recognition system
@@ -480,20 +442,21 @@ class AlgoRunner:
         #plt.ylim((0,5))
         if out_data["lines"] is not None:           
             for line in out_data["lines"]:        
-                for x1,y1,x2,y2 in line:            
-                    cv2.line(in_data["depth_img"],(x1,y1),(x2,y2),(0,255,0),2)
-                    pt1 = (out_data["feature_line"][1][0][0],out_data["feature_line"][1][0][1])
-                    pt2 = (out_data["feature_line"][1][-1][0],out_data["feature_line"][1][-1][1])
-                    cv2.line(in_data["depth_img"],pt1,pt2,(255,0,0),1)
-                    plt.plot(out_data["feature_line"][1][:,1],out_data["feature_line"][0][::-1],'b')
-                    plt.ylim((0,3))
+                x1,y1,x2,y2 = line            
+                cv2.line(in_data["depth_img"],(x1,y1),(x2,y2),(0,255,0),2)
+                pt1 = (out_data["feature_line"][1][0][0],out_data["feature_line"][1][0][1])
+                pt2 = (out_data["feature_line"][1][-1][0],out_data["feature_line"][1][-1][1])
+                cv2.line(in_data["depth_img"],pt1,pt2,(255,0,0),1)
+                plt.plot(out_data["feature_line"][1][:,1],out_data["feature_line"][0][::-1],'b')
+                plt.ylim((0,3))
 
 # Use hydra for configuration managing
 @hydra.main(version_base=None, config_path="../../config", config_name = "algo")
 def main(cfg):
-    bag_obj = BagReader('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-11-08-10-13-11.bag')
-    bag_obj.get_data()
-    algo_runner = AlgoRunner(bag_obj,cfg)
+    bag_obj = BagReader()
+    bag_obj.bag = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-11-08-10-13-11.bag'
+    dfs = bag_obj.get_dfs()
+    algo_runner = AlgoRunner(dfs,cfg)
     algo_runner.run()
 
 if __name__ == "__main__":

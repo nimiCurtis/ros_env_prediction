@@ -41,17 +41,18 @@ StairDetector:
     theta: 180
     thresh: 10
   Eliminate:
-    top: 20
-    bottom: 300
-    right: 440
-    left: 200
+    top_bottom: [20,300] # [top,bottom]
+    sides: [440,200] # [right, left]
     theta: 20
-    depth: 0.15
+    depth: [0.15,1.4] # [close lim, far lim]
+
 NormalEstimation: null
+
 AlgoRunner:
   save_run: false
   save_vid: false
-  viz_plot: true
+  viz_plot: false
+  viz_debug: false
   vid_name: default
   IntentRecognition:
     static_thresholds:
