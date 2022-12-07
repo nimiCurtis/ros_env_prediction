@@ -70,7 +70,6 @@ class StairDetector:
                 blured = ih.BilateralFilter(img, bilateral_config)
             img = blured
 
-        #https://docs.opencv.org/4.x/d5/d0f/tutorial_py_gradients.html
         # apply sobel functions
         if self.cfg.Sobel.enable:
             sobeld = ih.Sobel(img.copy(), sobel_config)
@@ -116,7 +115,18 @@ class StairDetector:
 
         return stairs_lines
 
-    def link_lines(self, lines:list, pgap:int=15):
+    def link_lines(self, lines:list, pgap:int=15)->list:
+        """Linking close lines
+
+        Args:
+            lines (list): input lines list
+            pgap (int, optional): threshold gap. Defaults to 15.
+
+        Returns:
+            list: output lines list with linked lines
+        """        
+
+        # change logic on the next dev session
         link_lines = []
         
         for i in range(len(lines)-1):
@@ -139,7 +149,16 @@ class StairDetector:
 
         return link_lines
 
-    def small_edges_eliminate(self,depth, lines:list):
+    def small_edges_eliminate(self, lines:list)->np.ndarray:
+        """Eliminate small edges assuming they are noise
+
+        Args:
+            lines (list): input lines list
+
+        Returns:
+            np.ndarray: output lines list with out noise
+        """        
+
         nlines = np.array(lines)
         p1 = nlines[:,:2]
         p2 = nlines[:,2:]
@@ -153,7 +172,8 @@ class StairDetector:
 
 
 
-    def vis(self,**kwargs):
+    def vis(self,**kwargs:dict):
+
         """This function visualize relevant images for debug
             """        
 
@@ -211,7 +231,7 @@ class AlgoRunner:
         """This function insert input data into a dictionary
 
             Args:
-                step (int): iteratiokn number
+                step (int): iteration number
 
             Returns:
                 dict: input dict
