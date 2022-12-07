@@ -9,6 +9,7 @@ import json
 from functools import reduce
 
 # extracting images dependendcies
+from types import Union
 import os
 import argparse
 import cv2
@@ -16,12 +17,13 @@ import rosbag
 from sensor_msgs.msg import Image, PointCloud2
 from cv_bridge import CvBridge, CvBridgeError
 
+# import from parallel module
 sys.path.insert(0, '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/scripts/modules/bag_processor')
 from bag_processor import DepthHandler
 dp = DepthHandler()
 
 class BagReader():
-    """_summary_
+    """A class for exporting/reading data from bags
         """    
     
     def __init__(self):
@@ -41,14 +43,25 @@ class BagReader():
 
     @property
     def bag(self):
-        """This function export/read bag data based on metadata 'exported' status
-            """        
+        """Get bag file path
+
+        Returns:
+            str: bag file path
+        """     
 
         return self._bag_file
 
     @bag.setter
-    def bag(self,bag_file):
+    def bag(self,bag_file:str):
+        """Set bag to handle
+
+        Args:
+            bag_file (str): bag file path
+        """
+        
         self._bag_file = bag_file
+        
+        # Use exist or create metadata
         self.bag_read = bagreader(self._bag_file) # get bagreader object using bagpy library
         self.metadata_file = os.path.join(self.bag_read.datafolder, "metadata.json")    
         self.MetaData ={}
@@ -58,10 +71,13 @@ class BagReader():
         else:
             self.MetaData["exported"] = False
         
-    def get_dfs(self):
-        
-        # create or use exist metadata json file
+    def get_dfs(self)->dict:
+        """Get data frames exported from bag
 
+        Returns:
+            dict: dictionary of dataframes
+        """
+        
         if self.MetaData["exported"]:
             self._dfs = self.read()
         else:
@@ -70,23 +86,31 @@ class BagReader():
         return self._dfs
 
 
-    def read(self):
-        """This function reading bag data from existing folders
-            """        
+    def read(self)->dict:
+        """Read data of existing bag datafolder
+
+        Returns:
+            dict: dictionary of dataframes
+        """
 
         print("[INFO]  Bag already exported, Reading data ...")
         
         names = ["imu","rgb","depth","confidence","disparity","pointclod","tf","synced"] # change based on configuration
         dfs = {}
+        
+        # iterating on topics names and read data
         for name in names:
             if name in self.MetaData:
                 dfs[name] = pd.read_csv(self.MetaData[name])
         
         return dfs
 
-    def export(self):
+    def export(self)->dict:
         """This function export the data from the bag and modify the data frames accordingly
-            """        
+
+        Returns:
+            dict: dictionary of dataframes
+        """     
         
 
         print("[INFO]  Bag doesn't exported, Exporting data ...")
@@ -108,6 +132,7 @@ class BagReader():
             if ((topic_row['Types']=='sensor_msgs/Image')or(topic_row['Types']=='stereo_msgs/DisparityImage')) and  topic_row['Message Count']!=0: # stop when topic is Image/Stereo kind and its not empty
                 dfs = self.init_image_df(dfs,topic_row['Topics']) 
         
+        # get df of topics synced with imu
         dfs["synced"] = self.sync_with_imu(dfs)
         synced_file = os.path.join(self.bag_read.datafolder,"synced.csv")
         dfs["synced"].to_csv(synced_file)
@@ -121,17 +146,22 @@ class BagReader():
 
         return dfs
 
-    def init_image_df(self,dfs,topic):
+    def init_image_df(self,dfs:dict,topic:str)->dict:
         """This function initializing image data frames using set_image_df function per topic
 
-            Args:
-                topic (string): name of the topic
-            """        
+        Args:
+            dfs (dict): dictionary of dataframes
+            topic (str): name of the topic
+
+        Returns:
+            dict: modified dictionary dataframes
+        """     
 
         topic_split = topic.split('/')
 
         names = ["rgb","depth","confidence","disparity","pointclod"] # change based on configuration
 
+        # iterating on topics names and set df for every image topic
         for name in names:
             if name in topic_split:
                 dfs[name] = self.set_image_df(topic,name)
@@ -139,17 +169,17 @@ class BagReader():
         
         return dfs
 
-    def set_image_df(self,topic,img_type):
-        """ This function creating the image type dataframes and csv files including the outputs from 
-        extract_images function 
+    def set_image_df(self,topic:str,img_type:str)->pd.DataFrame:
+        """This function creating the image type dataframes and csv files including the outputs from 
+        extract_images function
 
         Args:
-            topic (string): name of topic 
-            image_type (strip): type of image rgb/depth/confidence/disparity 
+            topic (str): type of image rgb/depth/confidence/disparity 
+            img_type (str): _description_
 
         Returns:
-            df (data frame): pandas data frame depends on the type of image
-        """   
+            pd.DataFrame: pandas data frame depends on the type of image
+        """
 
         self._frame_count = 0 # initialize counter every time using this function
 
@@ -177,18 +207,17 @@ class BagReader():
 
         return df
 
-    def extract_images(self, topic, dir, img_type):
-        """_summary_
+    def extract_images(self, topic:str, dir:str, img_type:str)->list:
+        """extract images data based on topic and list
 
-            Args:
-                topic (string): name of topic
-                dir (string): path to the directory
-                img_type (string): type of image rgb/depth/confidence/disparity
+        Args:
+            topic (str):  name of topic
+            dir (str): path to the directory
+            img_type (str): type of image rgb/depth/confidence/disparity
 
-            Returns:
-                frame_path_list (string array): list of the paths to the .jpg files
-                np_path_list (string array): list of the path to the .npy files of the values
-            """
+        Returns:
+            list: of numpy data and images frames
+        """
 
         bag = rosbag.Bag(self._bag_file, "r") # read the bag file using rosbag library
         bridge = CvBridge() # create bridge object
@@ -236,23 +265,30 @@ class BagReader():
 
         return frame_path_list, numpy_path_list
 
-    def save_np_data(self,values_array,dir):
+    def save_np_data(self,values_array:list,dir:str)->str:
         """This function save values of the image into .npy file 
 
-            Args:
-                values_array (numpy array): depth_values matrice 
-                dir (string): path to directory
-                
+        Args:
+            values_array (list): np values
+            dir (str): path to directory
 
-            Returns:
-                numpy_path (string): path to the saved file
-            """
+        Returns:
+            str: path to the saved file
+        """
 
         numpy_path = os.path.join(dir, "vals/np_values%06i.npy" % self._frame_count)
         np.save(numpy_path, values_array)
         return numpy_path
 
-    def sync_with_imu(self,dfs):
+    def sync_with_imu(self,dfs:dict)->pd.DataFrame:
+        """Get sync dataframe with imu data
+
+        Args:
+            dfs (dict): dictionary of dataframes (including imu)
+
+        Returns:
+            pd.DataFrame: synced dataframe
+        """
         df_sync = dfs["imu"]
         #dfs_to_sync = [v for k, v in dfs.items() ]
         cols = ['np_path', 'frame_path']
@@ -269,5 +305,3 @@ if __name__ == '__main__':
     bag_obj = BagReader()
     bag_obj.bag = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-11-08-10-07-30.bag'
     data_dfs = bag_obj.get_dfs()
-    print("length is - ",len(data_dfs))
-    a=1

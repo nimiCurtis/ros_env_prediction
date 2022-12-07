@@ -79,10 +79,12 @@ class RosbagRecord:
     def stop_recording_handler(self):
         """This function execute the terminate function when ros shutdown
             """        
+        # kill node
         rospy.loginfo("Ctrl-c detected")
         self.terminate_ros_node("/record")
         rospy.loginfo("Bag saved")
 
+        # dump params
         rospy.loginfo("Saving camera configurations..")
         os.mkdir(self.recorded_cam_params_folder)
         rosparam.dump_params(self.recorded_cam_params_folder+"/zedm.yaml",param="zedm")
