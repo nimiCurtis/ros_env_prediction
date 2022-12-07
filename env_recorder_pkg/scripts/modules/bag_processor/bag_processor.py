@@ -88,7 +88,17 @@ class ImageHandler():
         return mean, std
 
 
-    def GaussianBlur(self, img: np.ndarray, config: dict)->np.ndarray: # docstring
+    def GaussianBlur(self, img: np.ndarray, config: dict)->np.ndarray:
+        """Implement gaussian blur using opencv builtin function
+
+        Args:
+            img (np.ndarray): image mat
+            config (dict): configuration
+
+        Returns:
+            np.ndarray: blured image
+        """
+
         gs_ksize = (config.ksize,config.ksize)
         sigmaX = config.sigmaX
         sigmaY = config.sigmaY
@@ -96,7 +106,17 @@ class ImageHandler():
 
         return gauss_blured
 
-    def GaborFilter(self, img: np.ndarray, config: dict)->np.ndarray: # docstring
+    def GaborFilter(self, img: np.ndarray, config: dict)->np.ndarray:
+        """Implement Gabor filter using opencv builtin functions
+
+        Args:
+            img (np.ndarray): image mat
+            config (dict): configuration 
+
+        Returns:
+            np.ndarray: filtered image
+        """
+
         gb_ksize = (config.ksize,config.ksize)
         sigma = config.sigma
         theta = np.deg2rad(config.theta)
@@ -109,6 +129,16 @@ class ImageHandler():
         return gabor_filtered
 
     def BilateralFilter(self,img: np.ndarray, config: dict)->np.ndarray: # docstring
+        """Implement bilateral filter using opencv builtin functions
+
+        Args:
+            img (np.ndarray): image mat
+            config (dict): configuration 
+
+        Returns:
+            np.ndarray: filtered image
+        """
+
         d = config.d
         sigmaColor = config.sigmaColor 
         sigmaSpace = config.sigmaSpace
@@ -116,7 +146,17 @@ class ImageHandler():
 
         return bilateral_filterd
 
-    def Sobel(self,img: np.ndarray, config: dict)->np.ndarray: # docstring
+    def Sobel(self,img: np.ndarray, config: dict)->np.ndarray:
+        """Implement sobel filter using opencv builtin functions
+
+        Args:
+            img (np.ndarray): image mat
+            config (dict): configuration 
+
+        Returns:
+            np.ndarray: filtered image
+        """
+
         sobel_thresh = config.thresh
         s_ksize = config.ksize
         sobely = cv2.Sobel(img,cv2.CV_64F,0,1,s_ksize) # get sobely img
@@ -133,7 +173,17 @@ class ImageHandler():
 
         return sobely_u8
 
-    def Canny(self,img: np.ndarray, config: dict)->np.ndarray: # docstring
+    def Canny(self,img: np.ndarray, config: dict)->np.ndarray: 
+        """Implement canny edge detection using opencv builtin functions
+
+        Args:
+            img (np.ndarray): image mat
+            config (dict): configuration 
+
+        Returns:
+            np.ndarray: edges image
+        """
+
         canny_thresh1 = config.thresh1
         canny_thresh2 = config.thresh2
         aperture = config.aperture
@@ -141,7 +191,17 @@ class ImageHandler():
 
         return edges
 
-    def Hough(self,img: np.ndarray, config: dict)->np.ndarray: # docstring
+    def Hough(self,img: np.ndarray, config: dict)->np.ndarray:
+        """Implement Hough line detection using opencv builtin functions
+
+        Args:
+            img (np.ndarray): image mat
+            config (dict): configuration 
+
+        Returns:
+            np.ndarray: lines
+        """
+
         minLineLength = config.minLineLength
         maxLineGap = config.maxLineGap
         rho = config.rho
@@ -153,14 +213,14 @@ class ImageHandler():
 
 
     
-    def imshow_with_grid(self,img_path, color=(0, 255, 0), thickness=1):
-        """This function show image with the grid 
+    def imshow_with_grid(self,img_path:str, color:tuple=(0, 255, 0), thickness:int=1):
+        """This function show image with the grid
 
         Args:
-            img_path (string): path of image
-            color (tuple, optional): RGB values of the grid lines. Defaults to (0, 255, 0).
+            img_path (str): path of image
+            color (tuple, optional): RGB values of the grid lines. Defaults to (0, 255, 0)
             thickness (int, optional): grid lines thickness value. Defaults to 1.
-        """        
+        """
 
         img = cv2.imread(img_path)
         h, w, _ = img.shape
@@ -180,13 +240,25 @@ class ImageHandler():
         plt.imshow(img)
         plt.show()
 
-    def write_video(self, folder_path: str,file_name: str, frames: list, fps: float):
+    def write_video(self, folder_path:str, file_name:str, frames:list, fps:float):
+        """Video wirter by opencv VideoWriter function
+
+        Args:
+            folder_path (str): folder path to save
+            file_name (str): file name 
+            frames (list): list of frame to convert to video
+            fps (float): fps param
+        """        
         
         if not os.path.exists(folder_path+"/video"):
             os.mkdir(folder_path+"/video")
+        
+        # file path formating
         now = datetime.now().strftime("%H-%M-%S")
         file_path = folder_path+f"/video/{now}_"+file_name+".mp4"
-        h, w, _ = frames[0].shape
+        
+        # use opencv videowriter 
+        h, w, _ = frames[0].shape # unpack h,w dimensions from the first frame assuming frames dimensions are equall
         fourcc = cv2.VideoWriter_fourcc(*"mp4v")
         writer = cv2.VideoWriter(file_path, fourcc, fps, (w,h))
         cv2.VideoWriter()
@@ -211,69 +283,66 @@ class DepthHandler(ImageHandler):
 
         super().__init__()
 
-    def mm2meter(self, depth):
-        """This function covert depth matrice to meters units
+    def mm2meter(self, depth:np.ndarray)->np.ndarray:
+        """This function convert depth matrice to meters units
 
-            Args:
-                depth (numpy array): depth values in milimeters
+        Args:
+            depth (np.ndarray): depth values in milimeters
 
-            Returns:
-                depth (numpy array): depth values in meters
-            """        
+        Returns:
+            np.ndarray: depth values in meters
+        """        
 
         return depth/1000
 
-    def meter2mm(self, depth):
-        """This function covert depth matrice to mm units
+    def meter2mm(self, depth:np.ndarray)->np.ndarray:
+        """This function convert depth matrice to mm units
 
-            Args:
-                depth (numpy array): depth values in meters
+        Args:
+            depth (numpy array): depth values in meters
 
-            Returns:
-                depth (numpy array): depth values in milimeters
-            """ 
+        Returns:
+            depth (numpy array): depth values in milimeters
+        """        
 
         return depth*1000
 
-    def zero_to_nan(self, depth):
+    def zero_to_nan(self, depth:np.ndarray)->np.ndarray:
         """This function convert zero values to nan values in given depth matrice
 
         Args:
-            depth (numpy array): depth vals matrice
+            depth (np.ndarray): depth vals matrice
 
         Returns:
-            depth (numpy array): depth matrice with zero values converted to nan
-        """        
+            np.ndarray: depth matrice with zero values converted to nan
+        """         
 
         depth[depth==0] = np.nan
         return depth
 
-    def extract_depth_features_single(self,depth):
+    def extract_depth_features_single(self, depth:np.ndarray)->np.ndarray:
         """This function extract features from a depth matrice
         using the extract_features_singleImg
 
         Args:
-            depth (numpy array): depth vals matrice
+            depth (np.ndarray): depth vals matrice
 
         Returns:
-            mean (numpy array): means array from 'get_regions_mean()'
-            std (numpy array): std array from 'get_regions_std()'
-        """        
+            np.ndarray: means and std array from 'get_regions_std()'
+        """               
 
-        depth0 = self.zero_to_nan(depth)
+        depth0 = self.zero_to_nan(depth) # NOTE: different bitween formats of image.. need to check
         mean , std = self.extract_features_singleImg(depth0)
         return mean, std
 
-    def extract_depth_features_batch(self,df):
+    def extract_depth_features_batch(self, df:pd.DataFrame)->list:
         """This function extract features from given data frame of depth matrices
-
         Args:
-            df (pandas dataframe): data frame contains depth matrices
+            df (pd.DataFrame): data frame contains depth matrices
 
         Returns:
-            mean_arr (list): mean array off depth regions means
-            std_arr (list): std array off depth regions std
-        """        
+            list: means and std array off depth regions means
+        """
 
         mean_arr = []
         std_arr = []
@@ -289,35 +358,64 @@ class DepthHandler(ImageHandler):
         return mean_arr, std_arr
 
 
-    def get_depth_features_df(self,df):
-        """This function add extracted regions features columns to a given depth images dataframe 
+    def get_depth_features_df(self, df:pd.DataFrame)->pd.DataFrame:
+        """This function add extracted regions features columns to a given depth images dataframe
 
-            Args:
-                df (pandas dataframe): data frame contains depth matrices
+        Args:
+            df (pd.DataFrame): data frame contains depth matrices
 
-            Returns:
-                df (pandas dataframe): modified dataframe to include features columns
-            """        
+        Returns:
+            pd.DataFrame: modified dataframe to include features columns
+        """       
 
         feat_df = df 
         feat_df["mean"], feat_df["std"] = self.extract_depth_features_batch(df)
 
         return feat_df
 
-    def get_max_line(self,lines:np.ndarray):
-        p1 = lines[:,:2]
+    def get_max_line(self,lines:np.ndarray)->np.ndarray:
+        """Get the maximum line in the lines array
+
+        Args:
+            lines (np.ndarray): lines array
+
+        Returns:
+            np.ndarray: max line array
+        """        
+        # take the points of the lines
+        p1 = lines[:,:2] 
         p2 = lines[:,2:]
+        # calc dist = calc line length
         dist = np.linalg.norm(p1-p2,axis=1)
+        # find max
         max_length = np.max(dist)
         max_line = lines[dist==max_length]
+
         return max_line 
     
-    def get_mid(self,line):
+    def get_mid(self,line:np.ndarray)->int:
+        """Get the indexes of the middle of given line
+
+        Args:
+            line (np.ndarray): line 
+
+        Returns:
+            int: x, y integers of the middle
+        """        
         x1,y1,x2,y2 = line
         return int((x2+x1)/2),int((y2+y1)/2)
 
-    def get_feature_line(self,lines:np.ndarray,depth):
-        
+    def get_feature_line(self,lines:np.ndarray, depth:np.ndarray)->Union[np.ndarray,np.ndarray,tuple]:
+        """Get the feature line of given frame with lines detected
+
+        Args:
+            lines (np.ndarray): lines array
+            depth (np.ndarray): depth values matrice
+
+        Returns:
+            Union[np.ndarray,np.ndarray,tuple]: [feature line depth vals, feature line indexes, middle indexes]
+        """
+
         max_line = self.get_max_line(lines)
         xmid,ymid = self.get_mid(max_line[0])
         feature_vals = depth[:,xmid]
@@ -326,10 +424,21 @@ class DepthHandler(ImageHandler):
 
         return [feature_vals,feature_index, (xmid,ymid)]
 
-    def get_feature_region(self,lines:np.ndarray,depth):
+    def get_feature_region(self, lines:np.ndarray, depth:np.ndarray)->Union[np.ndarray,np.ndarray,tuple]:
+        """Get the feature line from a region suround the featrue line of given frame with lines detected
+
+        Args:
+            lines (np.ndarray): lines array
+            depth (np.ndarray): depth values matrice
+
+        Returns:
+            Union[np.ndarray,np.ndarray,tuple]: [feature line depth vals, feature line indexes, middle indexes]
+        """
+
         max_line = self.get_max_line(lines)
         xmid,ymid = self.get_mid(max_line[0])
 
+        # choose the width of the region 
         feature_vals = depth[:,xmid-5:xmid+5]
         feature_vals = feature_vals.mean(axis=1)
         #feature_vals = feature_vals[feature_vals!=0]
@@ -338,15 +447,16 @@ class DepthHandler(ImageHandler):
         
         return [feature_vals,feature_index, (xmid,ymid)]
 
-    def get_depth_normalization(self, img):
+    def get_depth_normalization(self, img:np.ndarray)->np.ndarray:
         """Normalize the depth image to fall between 0 (black) and 1 (white)
 
         Args:
-            img (numpy array): image matrice to be normalized
+            img (np.ndarray): image matrice to be normalized
 
         Returns:
-            img (numpy array): normalized image
+            np.ndarray: normalized image
         """        
+
         img_clone = img.copy() # make a copy of the values because cv2 only make a view and changing source
 
         cv2.normalize(img_clone, img_clone, 0, 1, cv2.NORM_MINMAX)
@@ -354,16 +464,18 @@ class DepthHandler(ImageHandler):
         
         return img_clone
     
-    def get_disparity_colormap(self,img, min_disparity,max_disparity):
-        """Get 
+    def get_disparity_colormap(self, img:np.ndarray, min_disparity:int, max_disparity:int)->np.ndarray:
+        """Get colormap image from diaprity values
 
-            Args:
-                values_array (numpy array): image disparity values
-                msg (stereo_msgs/Disparity): ROS msg of type Disparity. see: http://docs.ros.org/en/melodic/api/stereo_msgs/html/msg/DisparityImage.html
+        Args:
+            img (np.ndarray): image disparity values
+            min_disparity (int): min disparity
+            max_disparity (int): max disparity
 
-            Returns:
-                (numpy array): color map image of the disparity values
-            """        
+        Returns:
+            np.ndarray: _description_
+        """        
+        
         img_clone = img.copy() # make a copy of the values because cv2 only make a view and changing source
         normal_dist = max_disparity - min_disparity
         shifted_disparity = (img_clone - min_disparity)                    # shift values to get rid from negetive vals | current_min = 0
