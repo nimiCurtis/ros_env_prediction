@@ -36,15 +36,24 @@ See: [Download and Install the ZED SDK](https://www.stereolabs.com/docs/installa
 
 
 ## Content
-TBD
 
 The pacakge contains several folder:
+- [bag](env_recorder_pkg/bag): contain bag files and the exported datafolders.
 
-- [config](env_recorder_pkg/config): contains ```record.yaml``` 
-- [bag](env_recorder_pkg/bag): contains the saved dataset and bags folders 
-- [launch](env_recorder_pkg/launch): ....
-- [params](env_recorder_pkg/params): ....
-- [scripts](env_recorder_pkg/scripts):....
+- [config](env_recorder_pkg/config): 
+    - ```algo.yaml``` : paramters for the algorithms implementation
+    - ```record.yaml``` : parameters for recording
+    
+    The folder also contain the configs used every run of algo/recorder, but from memory reason it is located in the ignore file.
+
+
+- [launch](env_recorder_pkg/launch):
+    - ```zed_operate.launch``` : run ZED node
+    -  ```zed_recording.launch``` : run recording sequence -- in developing
+- [params](env_recorder_pkg/params): ZED node params taken from the source repository
+- [scripts](env_recorder_pkg/scripts):
+    - [brings_up](env_recorder_pkg/scripts/brings_up): shell scripts and and ros nodes for turning on the system -- in developing
+    - [modules](env_recorder_pkg/scripts/modules): ```bag_reader```,```bag_processor``` & ```algo_runner``` modules for handling and analyzing the data.
 
 
 
