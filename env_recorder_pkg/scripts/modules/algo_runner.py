@@ -188,6 +188,13 @@ class StairDetector:
         
         return fdepth_line
 
+    def find_stair(self,depth_line:np.ndarray)->np.ndarray:
+        subtracted = np.subtract(depth_line[1:],depth_line[:-1])
+        subtracted = np.concatenate([[0],subtracted])
+        subtracted_abs = np.abs(subtracted)
+        id_max = np.argmax(subtracted_abs)
+        return depth_line[id_max], id_max
+
     def vis(self,**kwargs:dict):
 
         """This function visualize relevant images for debug
@@ -422,7 +429,9 @@ class AlgoRunner:
                 #d = ss.medfilt2d(depth.copy(),3)
                 feature_line = dp.get_feature_line(lines,depth)
                 feature_line[0] = self.stair_detector.feature_line_filter(feature_line[0])
-                out_data["feature_line"] = feature_line
+                stair_dist = self.stair_detector.find_stair(feature_line[0])
+                
+                out_data["feature_line"], out_data["stair_dist"] = feature_line, stair_dist
 
             
             # update output dictionary and apply intent recognition system
@@ -477,7 +486,6 @@ class AlgoRunner:
         print(out_data["intent"])
 
         # plot staires lines 
-        #plt.ylim((0,5))
         if out_data["lines"] is not None:           
             for line in out_data["lines"]:        
                 x1,y1,x2,y2 = line            
@@ -485,8 +493,11 @@ class AlgoRunner:
                 pt1 = (out_data["feature_line"][1][0][0],out_data["feature_line"][1][0][1])
                 pt2 = (out_data["feature_line"][1][-1][0],out_data["feature_line"][1][-1][1])
                 cv2.line(in_data["depth_img"],pt1,pt2,(255,0,0),1)
-                plt.plot(out_data["feature_line"][1][:,1],out_data["feature_line"][0][::-1],'b')
-                plt.ylim((0,3))
+                cv2.circle(in_data["depth_img"],out_data["feature_line"][1][out_data["stair_dist"][1]],radius=5,color=(0,0,255))
+                cv2.putText(in_data["depth_img"],f"Distance to POI: {out_data['stair_dist'][0]:.3f}",org = (20,20),fontFace=cv2.FONT_HERSHEY_SIMPLEX,fontScale=0.4,color=(0,0,255),thickness=1)
+                plt.plot(out_data["feature_line"][1][:,1],out_data["feature_line"][0][::],'b')
+                plt.plot(out_data["stair_dist"][1],out_data["stair_dist"][0],marker="o", markersize=8, color="red")
+                plt.ylim((0,2.5))
 
 # Use hydra for configuration managing
 @hydra.main(version_base=None, config_path="../../config", config_name = "algo")
