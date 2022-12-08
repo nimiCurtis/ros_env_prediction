@@ -51,7 +51,7 @@ NormalEstimation: null
 AlgoRunner:
   save_run: false
   save_vid: false
-  viz_plot: false
+  viz_plot: true
   viz_debug: true
   vid_name: default
   IntentRecognition:

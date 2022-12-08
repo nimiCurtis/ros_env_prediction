@@ -29,6 +29,7 @@ class StairDetector:
         self.cfg = cfg
         
         self.max_line = 0
+        #self.line_detect = cv2.ximgproc.createFastLineDetector()
 
     def detect(self,img:np.ndarray, depth:np.ndarray,vis:bool=True)->list:
         """This function detect stairs lines using and image and depth values
@@ -70,16 +71,11 @@ class StairDetector:
                 blured = ih.BilateralFilter(img, bilateral_config)
             img = blured
 
-        img = cv2.flip(img,0)
-
         # apply sobel functions
         if self.cfg.Sobel.enable:
             sobeld = ih.Sobel(img.copy(), sobel_config)
             #sobeld = ih.GaussianBlur(sobeld.copy(), gauss_config)
             img = sobeld
-            
-        img = cv2.flip(img,0)
-
 
         # apply canny edge detection
         if self.cfg.Canny.enable:
@@ -88,7 +84,6 @@ class StairDetector:
 
         # apply Houghline detector
         lines = ih.Hough(img, hough_config)
-
         # eliminate candidats
         elim_top_bot = eliminate_config.top_bottom
         elim_sides = eliminate_config.sides
@@ -174,7 +169,24 @@ class StairDetector:
 
         return eliminate
 
-
+    def feature_line_filter(self,depth_line:np.ndarray)->np.ndarray:
+        fdepth_line = depth_line
+        j_flag=False
+        for i in range(len(fdepth_line-1)):
+            if fdepth_line[i]==0:
+                if not j_flag:
+                    for j in range(i+1,len(fdepth_line)):
+                        if fdepth_line[j]!=0:
+                            j_flag=True
+                            fdepth_line[i]=np.mean([fdepth_line[i-1],fdepth_line[j]])
+                            break
+                else:
+                    fdepth_line[i]=np.mean([fdepth_line[i-1],fdepth_line[j]])
+            else:
+                if j_flag:
+                    j_flag=False
+        
+        return fdepth_line
 
     def vis(self,**kwargs:dict):
 
@@ -408,9 +420,11 @@ class AlgoRunner:
             lines = self.stair_detector.detect(img, depth, vis=self._viz_debug)
             if len(lines)>0:
                 #d = ss.medfilt2d(depth.copy(),3)
-                feature_line = dp.get_feature_region(lines,depth)
+                feature_line = dp.get_feature_line(lines,depth)
+                feature_line[0] = self.stair_detector.feature_line_filter(feature_line[0])
                 out_data["feature_line"] = feature_line
 
+            
             # update output dictionary and apply intent recognition system
             out_data["lines"], out_data["mean"], out_data["std"] = lines, mean_grid, std_grid
             out_data["intent"] = self.intent_recognizer(out_data)

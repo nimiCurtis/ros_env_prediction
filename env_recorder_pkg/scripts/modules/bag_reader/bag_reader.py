@@ -17,6 +17,8 @@ import rosbag
 from sensor_msgs.msg import Image, PointCloud2
 from cv_bridge import CvBridge, CvBridgeError
 
+import matplotlib.pyplot as plt
+
 # import from parallel module
 sys.path.insert(0, '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/scripts/modules/bag_processor')
 from bag_processor import DepthHandler
@@ -305,3 +307,9 @@ if __name__ == '__main__':
     bag_obj = BagReader()
     bag_obj.bag = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-11-08-10-07-30.bag'
     data_dfs = bag_obj.get_dfs()
+    depth_df = data_dfs['depth']
+    conf_df = data_dfs['confidence']
+    depth = cv2.imread(depth_df.frame_path[200])
+    conf = np.load(conf_df.np_path[200])
+    plt.imshow(depth)
+
