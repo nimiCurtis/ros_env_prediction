@@ -101,7 +101,7 @@ class StairDetector:
         
         
         
-        stairs_lines = self.link_lines(stairs_lines)
+        stairs_lines = self.link_lines1(stairs_lines)
 
         if len(stairs_lines)>0:
             stairs_lines = self.small_edges_eliminate(stairs_lines)
@@ -114,7 +114,7 @@ class StairDetector:
 
         return stairs_lines
 
-    def link_lines(self, lines:list, pgap:int=15)->list:
+    def link_lines1(self, lines:list, pgap:int=15)->list:
         """Linking close lines
 
         Args:
@@ -148,6 +148,11 @@ class StairDetector:
 
         return link_lines
 
+    def link_lines2(self,lines:list)->list:
+        
+        
+        pass
+
     def small_edges_eliminate(self, lines:list)->np.ndarray:
         """Eliminate small edges assuming they are noise
 
@@ -172,6 +177,9 @@ class StairDetector:
     def feature_line_filter(self,depth_line:np.ndarray)->np.ndarray:
         fdepth_line = depth_line
         j_flag=False
+        if fdepth_line[0]==0:fdepth_line[0]= fdepth_line[fdepth_line!=0][0]
+        if fdepth_line[-1]==0:fdepth_line[-1]= fdepth_line[fdepth_line!=0][-1]
+
         for i in range(len(fdepth_line-1)):
             if fdepth_line[i]==0:
                 if not j_flag:
