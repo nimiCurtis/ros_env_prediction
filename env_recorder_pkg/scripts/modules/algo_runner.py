@@ -101,7 +101,7 @@ class StairDetector:
         
         
         
-        stairs_lines = self.link_lines1(stairs_lines)
+        stairs_lines = self.link_lines2(stairs_lines)
 
         if len(stairs_lines)>0:
             stairs_lines = self.small_edges_eliminate(stairs_lines)
@@ -149,9 +149,43 @@ class StairDetector:
         return link_lines
 
     def link_lines2(self,lines:list)->list:
+        link_lines = []
+        lines0 = lines
+        while(len(lines0)>0):
+            xl_i,yl_i,xr_i,yr_i = lines0.pop(0)
+            ym = int(np.mean([yl_i,yr_i]))
+            m_i = np.rad2deg(np.arctan((yl_i-yr_i)/(xl_i-xr_i)))
+            
+            if len(lines0)>0:
+                nlines = np.array(lines0[:]) 
+                nlines_candidates = nlines[(nlines[:,1]>ym-5)&(nlines[:,3]>ym-5)&(nlines[:,1]<ym+5)&(nlines[:,3]<ym+5)]
+                if len(nlines_candidates>0):
+                    m_j = np.rad2deg(np.arctan((nlines_candidates[:,1]-nlines_candidates[:,3])/(nlines_candidates[:,0]-nlines_candidates[:,2]))) 
+                    nlines_candidates = nlines_candidates[(m_j<m_i+3)&(m_j>m_i-3)]
+                    if len(nlines_candidates>0):
+                        xl = min(nlines_candidates[:,0].min(),xl_i)
+                        xr = max(nlines_candidates[:,2].max(),xr_i)
+                        if xl==xl_i:yl = yl_i
+                        else:yl = nlines_candidates[nlines_candidates[:,0]==xl][:,1][0]
+                        if xr==xr_i:yr = yr_i
+                        else:yr = nlines_candidates[nlines_candidates[:,2]==xr][:,3][0]
+                    
+                        link_lines.append(np.array((xl,yl,xr,yr)))
+                    
+                    else:
+                        link_lines.append(np.array((xl_i,yl_i,xr_i,yr_i)))
+                else:
+                    link_lines.append(np.array((xl_i,yl_i,xr_i,yr_i)))
+            else:
+                link_lines.append(np.array((xl_i,yl_i,xr_i,yr_i)))
+            
+            lines0 = [elem for elem in lines0 if elem not in nlines_candidates]
         
-        
-        pass
+        if len(link_lines)>0:
+            a=1
+            
+        return link_lines
+
 
     def small_edges_eliminate(self, lines:list)->np.ndarray:
         """Eliminate small edges assuming they are noise
@@ -169,7 +203,7 @@ class StairDetector:
         dist = np.linalg.norm(p1-p2,axis=1)
         max_length = np.max(dist)
         self.max_line = max(max_length,self.max_line)
-        line_thresh = self.max_line/4 
+        line_thresh = self.max_line/5 
         eliminate = nlines[dist>line_thresh]
 
         return eliminate
@@ -228,7 +262,7 @@ class NormalEstimation: # will continue in future work
 
 class AlgoRunner:
 
-    def __init__(self,dfs:dict,cfg:DictConfig ):
+    def __init__(self,bag_obj:BagReader,cfg:DictConfig ):
 
         """AlgoRunner constructor
         Args:
@@ -237,7 +271,8 @@ class AlgoRunner:
         """        
 
         # init bag object
-        self._dfs = dfs
+        self._bag_obj = bag_obj 
+        self._dfs = self._bag_obj.get_dfs()
         
         #init algo config
         self.intent_config = cfg.AlgoRunner.IntentRecognition
@@ -472,7 +507,7 @@ class AlgoRunner:
 
         if self._save_vid:
             print("[Info] Saving video..")    
-            ih.write_video(self.bag_obj.bag_read.datafolder,self._vid_name, frame_buffer, 10)
+            ih.write_video(self._bag_obj.bag_read.datafolder,self._vid_name, frame_buffer, 10)
             print("[Info] Video saved")
 
     def save_runner(self,algo_buffer):
@@ -512,8 +547,7 @@ class AlgoRunner:
 def main(cfg):
     bag_obj = BagReader()
     bag_obj.bag = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-11-08-10-13-11.bag'
-    dfs = bag_obj.get_dfs()
-    algo_runner = AlgoRunner(dfs,cfg)
+    algo_runner = AlgoRunner(bag_obj,cfg)
     algo_runner.run()
 
 if __name__ == "__main__":

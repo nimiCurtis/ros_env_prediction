@@ -50,10 +50,10 @@ NormalEstimation: null
 
 AlgoRunner:
   save_run: false
-  save_vid: false
-  viz_plot: true
+  save_vid: true
+  viz_plot: false
   viz_debug: true
-  vid_name: default
+  vid_name: link_test
   IntentRecognition:
     static_thresholds:
     - 0.3
