@@ -9,7 +9,7 @@ import json
 from functools import reduce
 
 # extracting images dependendcies
-from types import Union
+from typing import Union
 import os
 import argparse
 import cv2

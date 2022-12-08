@@ -70,12 +70,16 @@ class StairDetector:
                 blured = ih.BilateralFilter(img, bilateral_config)
             img = blured
 
+        img = cv2.flip(img,0)
+
         # apply sobel functions
         if self.cfg.Sobel.enable:
             sobeld = ih.Sobel(img.copy(), sobel_config)
             #sobeld = ih.GaussianBlur(sobeld.copy(), gauss_config)
             img = sobeld
             
+        img = cv2.flip(img,0)
+
 
         # apply canny edge detection
         if self.cfg.Canny.enable:
@@ -105,7 +109,7 @@ class StairDetector:
         stairs_lines = self.link_lines(stairs_lines)
 
         if len(stairs_lines)>0:
-            stairs_lines = self.small_edges_eliminate(depth,stairs_lines)
+            stairs_lines = self.small_edges_eliminate(stairs_lines)
 
         # visualize relevant images     
         if vis:

@@ -162,13 +162,14 @@ class ImageHandler():
         sobely = cv2.Sobel(img,cv2.CV_64F,0,1,s_ksize) # get sobely img
         # normalized sobel matrice
         # take the abs because sobel consist negative values.
-        sobely_abs = np.abs(sobely)
+        #sobely_abs = np.abs(sobely)
         # shift the matrice by the min val
         # sobely_shifted = sobely - np.min(sobely)
         # scaled the matrice to fall between 0-255
-        sobely_scaled = (sobely_abs/np.max(sobely_abs))*255
+        #sobely_scaled = (sobely_abs/np.max(sobely_abs))*255
         # convert matrice to uint8
-        sobely_u8 = sobely_scaled.astype("uint8")
+        #sobely_u8 = sobely_scaled.astype("uint8")
+        sobely_u8 = cv2.convertScaleAbs(sobely)
         sobely_u8[sobely_u8<sobel_thresh] = 0
 
         return sobely_u8

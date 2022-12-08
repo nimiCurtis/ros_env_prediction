@@ -52,7 +52,7 @@ AlgoRunner:
   save_run: false
   save_vid: false
   viz_plot: false
-  viz_debug: false
+  viz_debug: true
   vid_name: default
   IntentRecognition:
     static_thresholds:
