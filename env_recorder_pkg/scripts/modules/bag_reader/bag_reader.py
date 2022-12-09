@@ -258,5 +258,5 @@ class READER():
     
 
 if __name__ == '__main__':
-    read = READER('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-10-27-12-42-56.bag')
+    read = READER('/home/zion/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-11-06-15-43-58.bag')
     read.read()

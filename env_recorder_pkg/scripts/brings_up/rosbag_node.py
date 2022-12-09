@@ -1,4 +1,4 @@
-#!/usr/bin/env /home/nimibot/py3.7_ws/py3.7_venv/bin/python
+#!/usr/bin/env /home/zion/py3.7_ws/py3.7_venv/bin/python
 
 # Libraries
 import hydra
