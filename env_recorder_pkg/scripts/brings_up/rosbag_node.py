@@ -88,9 +88,6 @@ class RosbagRecord:
         rospy.loginfo("Saving camera configurations..")
         os.mkdir(self.recorded_cam_params_folder)
         rosparam.dump_params(self.recorded_cam_params_folder+"/zedm.yaml",param="zedm")
-        rosparam.dump_params(self.recorded_cam_params_folder+"/common.yaml",param="common")
-        
-        
 
 # Use hydra for configuration managing
 @hydra.main(config_path="../../config", config_name = "record")
