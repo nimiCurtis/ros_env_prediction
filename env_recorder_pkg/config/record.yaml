@@ -14,6 +14,8 @@ topics:
   depth: /zedm/zed_node/depth/depth_registered
   confidence: /zedm/zed_node/confidence/confidence_map
   disparity: /zedm/zed_node/disparity/disparity_image
+  odom: /zedm/zed_node/odom
+  pointcloud: /zedm/zed_node/point_cloud/cloud_registered
 
 
 recording:
@@ -23,11 +25,12 @@ recording:
   #bag_folder: /home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag
   #camera_params_fodler: /home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/config/recorder_configs/${now:%Y-%m-%d}/${now:%H-%M-%S}/camera_params
   camera_params_fodler: /home/zion/catkin_ws/src/ros_env_prediction/env_recorder_pkg/config/recorder_configs/${now:%Y-%m-%d}/${now:%H-%M-%S}/camera_params  
-  rec_imu : True
-  rec_rgb : True
-  rec_depth : True
+  rec_imu : False
+  rec_rgb : False
+  rec_depth : False
   rec_tf : False
   rec_confidence: False
   rec_disparity: False
-  rec_pointcloud: False
+  rec_pointcloud: True
+  rec_odom : False
 

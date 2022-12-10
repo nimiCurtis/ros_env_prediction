@@ -37,8 +37,14 @@ class RosbagRecord:
         if cfg.recording.rec_confidence:                # record confidence
             topics_list.append(cfg.topics.confidence)
         
-        if cfg.recording.rec_disparity:
+        if cfg.recording.rec_disparity:                 # record disparity
             topics_list.append(cfg.topics.disparity)
+        
+        if cfg.recording.rec_odom:
+            topics_list.append(cfg.topics.odom)
+        
+        if cfg.recording.rec_pointcloud:
+            topics_list.append(cfg.topics.pointcloud)
 
         self.record_script = cfg.recording.script           # use bash script from path in config
         self.record_folder = cfg.recording.bag_folder       # use folder to store the bag from path in config
