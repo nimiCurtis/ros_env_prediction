@@ -305,7 +305,7 @@ class AlgoRunner:
 
         in_data = {}
         in_data["depth"] = np.load(self._dfs["depth"].np_path[step])
-        in_data["depth_img"] = cv2.imread(self._dfs["rgb"].frame_path[step])
+        in_data["depth_img"] = cv2.imread(self._dfs["depth"].frame_path[step])
 
         return in_data
 
@@ -479,7 +479,7 @@ class AlgoRunner:
             
             # update output dictionary and apply intent recognition system
             out_data["lines"], out_data["mean"], out_data["std"] = lines, mean_grid, std_grid
-            out_data["intent"] = self.intent_recognizer(out_data)
+            #out_data["intent"] = self.intent_recognizer(out_data)
 
             # update buffer 
             algo_buffer.append(out_data)         
@@ -526,7 +526,7 @@ class AlgoRunner:
         
         # printing intentiokn state
 
-        print(out_data["intent"])
+        #print(out_data["intent"])
 
         # plot staires lines 
         if out_data["lines"] is not None:           
@@ -546,7 +546,7 @@ class AlgoRunner:
 @hydra.main(version_base=None, config_path="../../config", config_name = "algo")
 def main(cfg):
     bag_obj = BagReader()
-    bag_obj.bag = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-11-08-10-13-11.bag'
+    bag_obj.bag = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-12-15-24-09.bag'
     algo_runner = AlgoRunner(bag_obj,cfg)
     algo_runner.run()
 

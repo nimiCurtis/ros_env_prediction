@@ -9,7 +9,7 @@ hydra:
 StairDetector:
   blur:
     enable: true
-    type: 0
+    type: 1
   GaussianBlur:
     ksize: 15
     sigmaX: 3
@@ -27,8 +27,8 @@ StairDetector:
     sigmaSpace: 20
   Sobel:
     enable: true
-    ksize: 3
-    thresh: 80
+    ksize: 11
+    thresh: 100
   Canny:
     enable: true
     thresh1: 100
@@ -41,19 +41,19 @@ StairDetector:
     theta: 180
     thresh: 10
   Eliminate:
-    top_bottom: [20,300] # [top,bottom]
+    top_bottom: [20,320] # [top,bottom]
     sides: [440,200] # [right, left]
-    theta: 20
-    depth: [0.15,1.4] # [close lim, far lim]
+    theta: 15
+    depth: [0.3,2] # [close lim, far lim]
 
 NormalEstimation: null
 
 AlgoRunner:
   save_run: false
   save_vid: true
-  viz_plot: false
+  viz_plot: true
   viz_debug: true
-  vid_name: link_test
+  vid_name: default
   IntentRecognition:
     static_thresholds:
     - 0.3
