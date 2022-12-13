@@ -15,8 +15,12 @@ import matplotlib.animation as animation
 # import bag reader and processor modules
 from bag_reader.bag_reader import BagReader
 from bag_processor import DepthHandler, ImageHandler
+from feature_line_extractor.feature_line_extractor import FeatLineExtract
+
 dp = DepthHandler()
 ih = ImageHandler()
+
+
 
 class StairDetector:
     """_summary_
@@ -289,7 +293,8 @@ class AlgoRunner:
         # init detectors/estimators
         self.stair_detector = StairDetector(cfg.StairDetector)
         self.normal_estimator = NormalEstimation()
-        
+        self.feature_line_extractor = FeatLineExtract()
+
         # set thresholds
         self.static_thresholds = self.intent_config.static_thresholds    
         self.dynamic_thresholds = {} 
@@ -462,6 +467,11 @@ class AlgoRunner:
         if self._plots_config.save_mode:
             if not os.path.exists(self._bag_obj.bag_read.datafolder+"/plots"):
                 os.mkdir(self._bag_obj.bag_read.datafolder+"/plots")
+                if not os.path.exists(self._bag_obj.bag_read.datafolder+"/plots/feature"):
+                    os.mkdir(self._bag_obj.bag_read.datafolder+"/plots/feature")
+            else:
+                if not os.path.exists(self._bag_obj.bag_read.datafolder+"/plots/feature"):
+                    os.mkdir(self._bag_obj.bag_read.datafolder+"/plots/feature")
         
         # iterating the frames
 
@@ -535,7 +545,7 @@ class AlgoRunner:
                     cv2.destroyAllWindows()   
                     raise Exception()
             else:
-                cv2.waitKey(0) 
+                cv2.waitKey(1) 
 
         # save output data of this run
         if self._save_run:
@@ -588,14 +598,28 @@ class AlgoRunner:
 
     def plot_step(self,step,in_data,out_data,save,pltshow,imshow):
         file_path = self._bag_obj.bag_read.datafolder+f"/plots/plot_{step}.png"
+        np_path = self._bag_obj.bag_read.datafolder+f"/plots/feature/plot_{step}.npy"
         if save or pltshow:
-            fig, ax = plt.subplots()
-            ax.plot(out_data["feature_line"][1][:,1],out_data["feature_line"][0][::],'b')
-            ax.plot(out_data["stair_dist"][1],out_data["stair_dist"][0],marker="o", markersize=8, color="red")
-            ax.set_title(f"depth vs pixel index | frame: {step}")
+            fig, (ax1, ax2) = plt.subplots(2, 1)
+            # make a little extra space between the subplots
+            fig.subplots_adjust(hspace=0.5)
+            px_indexes = out_data["feature_line"][1][:,1]
+            depth_line = out_data["feature_line"][0][::]
+
+            features_dic = self.feature_line_extractor.extract(depth_line)
+            ax1.plot(px_indexes,depth_line,'b')
+            #ax1.plot(out_data["stair_dist"][1],out_data["stair_dist"][0],marker="o", markersize=8, color="red")
+            ax1.plot(features_dic['depth_peaks'],depth_line[features_dic["depth_peaks"]],"x")
+
+            ax1.set_title(f"depth vs pixel index | frame: {step}")
             
+            
+            ax2.plot(px_indexes,features_dic['subtracted'])
+            ax2.plot(features_dic['subtracted_peaks'],features_dic['subtracted'][features_dic['subtracted_peaks']],"x")
+            ax2.set_title(f"depth diff vs pixel index")
 
             if save:
+                #np.save(np_path,np.array((depth_line)))
                 plt.savefig(file_path)
             
             if pltshow:
@@ -608,8 +632,6 @@ class AlgoRunner:
             cv2.imshow("plot",img)
 
 
-        
-        
 
 # Use hydra for configuration managing
 @hydra.main(version_base=None, config_path="../../config", config_name = "algo")
