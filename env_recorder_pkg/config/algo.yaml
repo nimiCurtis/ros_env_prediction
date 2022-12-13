@@ -62,6 +62,7 @@ AlgoRunner:
     save_mode: false
     name: default
 
+  run_from: null
   save_run: false
 
   IntentRecognition:

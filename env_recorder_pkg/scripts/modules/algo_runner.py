@@ -293,10 +293,12 @@ class AlgoRunner:
         # set thresholds
         self.static_thresholds = self.intent_config.static_thresholds    
         self.dynamic_thresholds = {} 
+        
+        if cfg.AlgoRunner.run_from is not None:
+            self.start_step = cfg.AlgoRunner.run_from
+        else:
+            self.start_step = 0
 
-        self.artists = []
-        
-        
     def __len__(self): ## need to change 
         return len(self._dfs["depth"])
 
@@ -450,8 +452,9 @@ class AlgoRunner:
 
     def run(self):
         """This function run the main algorithem of the intention recognition system
-            """        
-        fig, ax = plt.subplots()
+            """
+
+        
         # init buffer for saving data
         algo_buffer = []
         frame_buffer = []
@@ -461,7 +464,8 @@ class AlgoRunner:
                 os.mkdir(self._bag_obj.bag_read.datafolder+"/plots")
         
         # iterating the frames
-        for step in range(len(self)):
+
+        for step in range(self.start_step,len(self)):
             # set input/output dictionaries
             out_data = {}
             in_data = self.get_current_step(step)
@@ -508,7 +512,7 @@ class AlgoRunner:
             
 
             # visualize output
-            self.vis_step(in_data,out_data)
+            self.vis_step(step,in_data,out_data)
             
             if self._plots_config.save_mode:
                     self.plot_step(step,in_data,out_data,
@@ -531,16 +535,8 @@ class AlgoRunner:
                     cv2.destroyAllWindows()   
                     raise Exception()
             else:
-                cv2.waitKey(1) 
-            
-            
+                cv2.waitKey(0) 
 
-        
-        
-        
-        
-        
-        
         # save output data of this run
         if self._save_run:
             self.save_runner(algo_buffer)
@@ -553,7 +549,7 @@ class AlgoRunner:
     def save_runner(self,algo_buffer):
         pass
 
-    def vis_step(self,in_data:dict,out_data:dict):
+    def vis_step(self,step,in_data:dict,out_data:dict):
         """This function visualize the output of the algorithem
 
         Args:
@@ -572,41 +568,48 @@ class AlgoRunner:
         pt1 = (out_data["feature_line"][1][0][0],out_data["feature_line"][1][0][1])
         pt2 = (out_data["feature_line"][1][-1][0],out_data["feature_line"][1][-1][1])
         cv2.line(in_data["depth_img"],pt1,pt2,(255,0,0),1)
-        cv2.putText(in_data["depth_img"],f"Distance to POI: {out_data['stair_dist'][0]:.3f}",org = (20,20),fontFace=cv2.FONT_HERSHEY_SIMPLEX,fontScale=0.4,color=(0,0,255),thickness=1)
-        
+        text = f"Distance to POI: {out_data['stair_dist'][0]:.3f},frame: {step}"
+        y0, dy = 20, 15
+        for i, line in enumerate(text.split(',')):
+            y = y0 + i*dy
+            cv2.putText(in_data["depth_img"],line,org = (20, y ),fontFace=cv2.FONT_HERSHEY_SIMPLEX,fontScale=0.4,color=(0,0,255),thickness=1)
+
         cv2.circle(in_data["depth_img"],out_data["feature_line"][1][out_data["stair_dist"][1]],radius=5,color=(0,0,255))
-        
-        
+
+
         if self.stair_detector.enable:
             if out_data["lines"] is not None:           
                 for line in out_data["lines"]:        
                     x1,y1,x2,y2 = line            
                     cv2.line(in_data["depth_img"],(x1,y1),(x2,y2),(0,255,0),2)
-        
+
         # re-drawing the figure
         cv2.imshow("rgb", in_data["depth_img"])
-        
-
-        
 
     def plot_step(self,step,in_data,out_data,save,pltshow,imshow):
-        fig, ax = plt.subplots()
-        ax.plot(out_data["feature_line"][1][:,1],out_data["feature_line"][0][::],'b')
-        ax.plot(out_data["stair_dist"][1],out_data["stair_dist"][0],marker="o", markersize=8, color="red")
-
         file_path = self._bag_obj.bag_read.datafolder+f"/plots/plot_{step}.png"
+        if save or pltshow:
+            fig, ax = plt.subplots()
+            ax.plot(out_data["feature_line"][1][:,1],out_data["feature_line"][0][::],'b')
+            ax.plot(out_data["stair_dist"][1],out_data["stair_dist"][0],marker="o", markersize=8, color="red")
+            ax.set_title(f"depth vs pixel index | frame: {step}")
+            
 
-        if save:
-            plt.savefig(file_path)
+            if save:
+                plt.savefig(file_path)
+            
+            if pltshow:
+                plt.show()
+            
+            plt.close(fig)
         
         if imshow:
             img = cv2.imread(file_path)
             cv2.imshow("plot",img)
 
-        if pltshow:
-            plt.show()
+
         
-        plt.close(fig)
+        
 
 # Use hydra for configuration managing
 @hydra.main(version_base=None, config_path="../../config", config_name = "algo")
