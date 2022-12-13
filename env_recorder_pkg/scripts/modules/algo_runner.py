@@ -20,8 +20,6 @@ from feature_line_extractor.feature_line_extractor import FeatLineExtract
 dp = DepthHandler()
 ih = ImageHandler()
 
-
-
 class StairDetector:
     """_summary_
         """    
@@ -619,8 +617,8 @@ class AlgoRunner:
             ax2.set_title(f"depth diff vs pixel index")
 
             if save:
-                #np.save(np_path,np.array((depth_line)))
-                plt.savefig(file_path)
+                np.save(np_path,np.array((depth_line)))
+                #plt.savefig(file_path)
             
             if pltshow:
                 plt.show()
@@ -637,7 +635,7 @@ class AlgoRunner:
 @hydra.main(version_base=None, config_path="../../config", config_name = "algo")
 def main(cfg):
     bag_obj = BagReader()
-    bag_obj.bag = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-12-15-24-09.bag'
+    bag_obj.bag = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-11-08-10-13-11.bag'
     algo_runner = AlgoRunner(bag_obj,cfg)
     algo_runner.run()
 

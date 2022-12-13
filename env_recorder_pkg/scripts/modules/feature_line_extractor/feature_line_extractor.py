@@ -40,10 +40,7 @@ class FeatLineExtract:
         for filename in os.scandir(dir_path): 
             if filename.is_file() and filename.path.split('.')[-1]=='npy':
             #load np arrays
-                ar = np.load(filename)
-                depth, idx = ar[1],ar[0]
-                
-                
+                depth = np.load(filename)
             
                 features_dic = self.extract(depth)
             
@@ -122,7 +119,7 @@ class FeatLineExtract:
 
 def main():
     extractor = FeatLineExtract()
-    extractor.extract_dir('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-12-15-24-09/plots/feature')
+    extractor.extract_dir('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-11-08-10-13-11/plots/feature')
 
 if __name__ == '__main__':
     main()
