@@ -1,12 +1,16 @@
 # imports
+import os
 import hydra
 from omegaconf import DictConfig
+from datetime import datetime
 from typing import Union
 import cv2
 import numpy as np
 import scipy.signal as ss
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+
 
 # import bag reader and processor modules
 from bag_reader.bag_reader import BagReader
@@ -27,6 +31,7 @@ class StairDetector:
 
         # init config
         self.cfg = cfg
+        self.enable = cfg.enable
         
         self.max_line = 0
         #self.line_detect = cv2.ximgproc.createFastLineDetector()
@@ -277,10 +282,9 @@ class AlgoRunner:
         #init algo config
         self.intent_config = cfg.AlgoRunner.IntentRecognition
         self._save_run = cfg.AlgoRunner.save_run
-        self._save_vid = cfg.AlgoRunner.save_vid
-        self._viz_plot = cfg.AlgoRunner.viz_plot
-        self._vid_name = cfg.AlgoRunner.vid_name
-        self._viz_debug = cfg.AlgoRunner.viz_debug
+
+        self._vid_config = cfg.AlgoRunner.video
+        self._plots_config = cfg.AlgoRunner.plots
 
         # init detectors/estimators
         self.stair_detector = StairDetector(cfg.StairDetector)
@@ -289,6 +293,9 @@ class AlgoRunner:
         # set thresholds
         self.static_thresholds = self.intent_config.static_thresholds    
         self.dynamic_thresholds = {} 
+
+        self.artists = []
+        
         
     def __len__(self): ## need to change 
         return len(self._dfs["depth"])
@@ -444,11 +451,15 @@ class AlgoRunner:
     def run(self):
         """This function run the main algorithem of the intention recognition system
             """        
-        
+        fig, ax = plt.subplots()
         # init buffer for saving data
         algo_buffer = []
         frame_buffer = []
 
+        if self._plots_config.save_mode:
+            if not os.path.exists(self._bag_obj.bag_read.datafolder+"/plots"):
+                os.mkdir(self._bag_obj.bag_read.datafolder+"/plots")
+        
         # iterating the frames
         for step in range(len(self)):
             # set input/output dictionaries
@@ -467,29 +478,53 @@ class AlgoRunner:
             std_grid = dp.get_regions_std(depth_grid)
 
             # detect staires lines
-            lines = self.stair_detector.detect(img, depth, vis=self._viz_debug)
-            if len(lines)>0:
-                #d = ss.medfilt2d(depth.copy(),3)
-                feature_line = dp.get_feature_line(lines,depth)
+            if self.stair_detector.enable:
+                lines = self.stair_detector.detect(img, depth, vis=self._vid_config.debug)
+                if len(lines)>0:
+                    #d = ss.medfilt2d(depth.copy(),3)
+                    feature_line = dp.get_feature_line(lines,depth)
+                    feature_line[0] = self.stair_detector.feature_line_filter(feature_line[0])
+                    stair_dist = self.stair_detector.find_stair(feature_line[0])
+                    
+                    out_data["feature_line"], out_data["stair_dist"] = feature_line, stair_dist
+
+                out_data["lines"] = lines
+            
+            else:
+                feature_line = dp.get_feature_line(depth)
                 feature_line[0] = self.stair_detector.feature_line_filter(feature_line[0])
                 stair_dist = self.stair_detector.find_stair(feature_line[0])
                 
+                
                 out_data["feature_line"], out_data["stair_dist"] = feature_line, stair_dist
 
-            
             # update output dictionary and apply intent recognition system
-            out_data["lines"], out_data["mean"], out_data["std"] = lines, mean_grid, std_grid
+            out_data["mean"], out_data["std"] =  mean_grid, std_grid
             #out_data["intent"] = self.intent_recognizer(out_data)
 
             # update buffer 
             algo_buffer.append(out_data)         
             frame_buffer.append(in_data["depth_img"])
+            
 
             # visualize output
             self.vis_step(in_data,out_data)
-            # re-drawing the figure
-            cv2.imshow("rgb", in_data["depth_img"])
             
+            if self._plots_config.save_mode:
+                    self.plot_step(step,in_data,out_data,
+                                save=True,
+                                pltshow=self._plots_config.debug.online,
+                                imshow=False)
+
+            else:
+                if self._plots_config.debug.online or self._plots_config.debug.offline:
+                    self.plot_step(step,in_data,out_data,
+                                    save=False,
+                                    pltshow=self._plots_config.debug.online,
+                                    imshow=self._plots_config.debug.offline)
+                else:
+                    pass
+
 
             # 'q' key to stop
             if cv2.waitKey(10) & 0xFF == ord('q'): 
@@ -498,16 +533,21 @@ class AlgoRunner:
             else:
                 cv2.waitKey(1) 
             
-            if self._viz_plot:
-                plt.show()
             
+
+        
+        
+        
+        
+        
+        
         # save output data of this run
         if self._save_run:
             self.save_runner(algo_buffer)
 
-        if self._save_vid:
+        if self._vid_config.save:
             print("[Info] Saving video..")    
-            ih.write_video(self._bag_obj.bag_read.datafolder,self._vid_name, frame_buffer, 10)
+            ih.write_video(self._bag_obj.bag_read.datafolder,self._vid_config.name, frame_buffer, 10)
             print("[Info] Video saved")
 
     def save_runner(self,algo_buffer):
@@ -528,19 +568,45 @@ class AlgoRunner:
 
         #print(out_data["intent"])
 
-        # plot staires lines 
-        if out_data["lines"] is not None:           
-            for line in out_data["lines"]:        
-                x1,y1,x2,y2 = line            
-                cv2.line(in_data["depth_img"],(x1,y1),(x2,y2),(0,255,0),2)
-                pt1 = (out_data["feature_line"][1][0][0],out_data["feature_line"][1][0][1])
-                pt2 = (out_data["feature_line"][1][-1][0],out_data["feature_line"][1][-1][1])
-                cv2.line(in_data["depth_img"],pt1,pt2,(255,0,0),1)
-                cv2.circle(in_data["depth_img"],out_data["feature_line"][1][out_data["stair_dist"][1]],radius=5,color=(0,0,255))
-                cv2.putText(in_data["depth_img"],f"Distance to POI: {out_data['stair_dist'][0]:.3f}",org = (20,20),fontFace=cv2.FONT_HERSHEY_SIMPLEX,fontScale=0.4,color=(0,0,255),thickness=1)
-                plt.plot(out_data["feature_line"][1][:,1],out_data["feature_line"][0][::],'b')
-                plt.plot(out_data["stair_dist"][1],out_data["stair_dist"][0],marker="o", markersize=8, color="red")
-                plt.ylim((0,2.5))
+        # plot staires lines
+        pt1 = (out_data["feature_line"][1][0][0],out_data["feature_line"][1][0][1])
+        pt2 = (out_data["feature_line"][1][-1][0],out_data["feature_line"][1][-1][1])
+        cv2.line(in_data["depth_img"],pt1,pt2,(255,0,0),1)
+        cv2.putText(in_data["depth_img"],f"Distance to POI: {out_data['stair_dist'][0]:.3f}",org = (20,20),fontFace=cv2.FONT_HERSHEY_SIMPLEX,fontScale=0.4,color=(0,0,255),thickness=1)
+        
+        cv2.circle(in_data["depth_img"],out_data["feature_line"][1][out_data["stair_dist"][1]],radius=5,color=(0,0,255))
+        
+        
+        if self.stair_detector.enable:
+            if out_data["lines"] is not None:           
+                for line in out_data["lines"]:        
+                    x1,y1,x2,y2 = line            
+                    cv2.line(in_data["depth_img"],(x1,y1),(x2,y2),(0,255,0),2)
+        
+        # re-drawing the figure
+        cv2.imshow("rgb", in_data["depth_img"])
+        
+
+        
+
+    def plot_step(self,step,in_data,out_data,save,pltshow,imshow):
+        fig, ax = plt.subplots()
+        ax.plot(out_data["feature_line"][1][:,1],out_data["feature_line"][0][::],'b')
+        ax.plot(out_data["stair_dist"][1],out_data["stair_dist"][0],marker="o", markersize=8, color="red")
+
+        file_path = self._bag_obj.bag_read.datafolder+f"/plots/plot_{step}.png"
+
+        if save:
+            plt.savefig(file_path)
+        
+        if imshow:
+            img = cv2.imread(file_path)
+            cv2.imshow("plot",img)
+
+        if pltshow:
+            plt.show()
+        
+        plt.close(fig)
 
 # Use hydra for configuration managing
 @hydra.main(version_base=None, config_path="../../config", config_name = "algo")

@@ -406,7 +406,7 @@ class DepthHandler(ImageHandler):
         x1,y1,x2,y2 = line
         return int((x2+x1)/2),int((y2+y1)/2)
 
-    def get_feature_line(self,lines:np.ndarray, depth:np.ndarray)->Union[np.ndarray,np.ndarray,tuple]:
+    def get_feature_line(self,depth:np.ndarray,lines:np.ndarray=None)->Union[np.ndarray,np.ndarray,tuple]:
         """Get the feature line of given frame with lines detected
 
         Args:
@@ -416,12 +416,18 @@ class DepthHandler(ImageHandler):
         Returns:
             Union[np.ndarray,np.ndarray,tuple]: [feature line depth vals, feature line indexes, middle indexes]
         """
-
-        max_line = self.get_max_line(lines)
-        xmid,ymid = self.get_mid(max_line[0])
-        feature_vals = depth[:,xmid]
-        feature_index = np.ones((feature_vals.shape[0],2),dtype=np.int16)*xmid
-        feature_index[:,1] = np.arange(0,feature_vals.shape[0])
+        if lines is not None:
+            max_line = self.get_max_line(lines)
+            xmid,ymid = self.get_mid(max_line[0])
+            feature_vals = depth[:,xmid]
+            feature_index = np.ones((feature_vals.shape[0],2),dtype=np.int16)*xmid
+            feature_index[:,1] = np.arange(0,feature_vals.shape[0])
+        
+        else:
+            xmid,ymid = int(depth.shape[1]/2),(depth.shape[0]/2)
+            feature_vals = depth[:,xmid]
+            feature_index = np.ones((feature_vals.shape[0],2),dtype=np.int16)*xmid
+            feature_index[:,1] = np.arange(0,feature_vals.shape[0])
 
         return [feature_vals,feature_index, (xmid,ymid)]
 

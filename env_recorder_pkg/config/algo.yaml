@@ -7,6 +7,7 @@ hydra:
     subdir: ${hydra.job.num}
 
 StairDetector:
+  enable: false
   blur:
     enable: true
     type: 1
@@ -49,11 +50,20 @@ StairDetector:
 NormalEstimation: null
 
 AlgoRunner:
+  video:
+    debug: true
+    save: false
+    name: default
+  
+  plots:
+    debug:
+      online: false
+      offline: true
+    save_mode: false
+    name: default
+
   save_run: false
-  save_vid: true
-  viz_plot: true
-  viz_debug: true
-  vid_name: default
+
   IntentRecognition:
     static_thresholds:
     - 0.3
