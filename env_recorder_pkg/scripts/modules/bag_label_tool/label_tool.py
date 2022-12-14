@@ -55,7 +55,8 @@ class LabelTool:
                 capture.set(cv2.CAP_PROP_POS_FRAMES, frame_i)
                 _, frame = capture.read()
                 
-                
+            elif k==ord('c'):
+                labels_dict[f"frame{frame_i}"] = label
 
             elif k==ord('q'):
                 cv2.destroyAllWindows()
@@ -64,7 +65,7 @@ class LabelTool:
             elif k==ord('l'):
                 label = self.set_frame_label(frame_i)
                 labels_dict[f"frame{frame_i}"] = label
-            
+
             elif k==ord('s'):
                 
                 start = int(input("Insert index of starting frame : "))
@@ -75,6 +76,7 @@ class LabelTool:
                 
                 label = int(input(f"Insert label for frames {start} - {stop} : "))
                 self.set_frames_label(labels_dict,start,stop,label)
+                
 
 
             keys = labels_dict.keys()
@@ -86,14 +88,17 @@ class LabelTool:
             clone = frame.copy()
             cv2.putText(clone,text,org=(20,30),fontFace=cv2.FONT_HERSHEY_COMPLEX,fontScale=1,thickness=2,color=(0,0,255))
             cv2.imshow('frame', clone)
+            if len(labels_dict)==frame_count:
+                print("[Info]  All frames are labeld")
 
-        a=1
-        
         if len(labels_dict)==frame_count:
             labels_list = self.return_labels_as_list(labels_dict)
             df = pd.read_csv(dataset_file)
             df['labels'] = labels_list
             df.to_csv(dataset_file)
+            print("[Info]  Labels saved")
+        else:
+            print("[Info]  Exiting without saving labels")
 
     def isvalid_frame(self,frame_i,frame_count):
         if frame_i in range(frame_count):
@@ -118,8 +123,8 @@ class LabelTool:
 
 def main():
     label_tool = LabelTool()
-    video_file = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-11-08-10-13-11/video/22-14-31_link_test.mp4'
-    dataset_file = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-11-08-10-13-11/plots/feature/features.csv'
+    video_file = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-12-15-23-00/video/15-52-27_default.mp4'
+    dataset_file = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-12-15-23-00/plots/feature/features.csv'
     label_tool.set_dataset_labels(video_file,dataset_file)
 
 
