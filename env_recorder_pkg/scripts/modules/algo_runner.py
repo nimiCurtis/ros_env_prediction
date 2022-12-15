@@ -616,12 +616,11 @@ class AlgoRunner:
 
             ax1.set_title(f"depth vs pixel index | frame: {step}")
             ax1.set_ylim(0.3,9)
-            
-            
-            ax2.plot(px_indexes,features_dic['subtracted'])
-            ax2.plot(features_dic['subtracted_peaks'],features_dic['subtracted'][features_dic['subtracted_peaks']],"x")
-            ax2.set_title(f"depth diff vs pixel index")
-            ax2.set_ylim(-0.5,0.5)
+
+            ax2.plot(px_indexes,features_dic['gradient'])
+            ax2.plot(features_dic['gradient_peaks'],features_dic['gradient'][features_dic['gradient_peaks']],"x")
+            ax2.set_title(f"depth grad vs pixel index")
+            ax2.set_ylim(-0.45,0.45)
 
             if save:
                 np.save(np_path,np.array((depth_line)))

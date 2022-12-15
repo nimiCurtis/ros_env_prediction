@@ -58,7 +58,7 @@ AlgoRunner:
   plots:
     debug:
       online: true
-      offline: true
+      offline: false
     save_mode: false
     name: default
 
