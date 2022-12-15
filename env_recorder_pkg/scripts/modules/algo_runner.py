@@ -518,7 +518,6 @@ class AlgoRunner:
             algo_buffer.append(out_data)         
             frame_buffer.append(in_data["depth_img"])
             
-
             # visualize output
             self.vis_step(step,in_data,out_data)
             
@@ -536,14 +535,18 @@ class AlgoRunner:
                                     imshow=self._plots_config.debug.offline)
                 else:
                     pass
-
+            
+            
+            
 
             # 'q' key to stop
-            if cv2.waitKey(10) & 0xFF == ord('q'): 
+            if cv2.waitKey(1) & 0xFF == ord('q'): 
                     cv2.destroyAllWindows()   
                     raise Exception()
             else:
                 cv2.waitKey(1) 
+            
+            
 
         # save output data of this run
         if self._save_run:
@@ -595,8 +598,10 @@ class AlgoRunner:
         cv2.imshow("rgb", in_data["depth_img"])
 
     def plot_step(self,step,in_data,out_data,save,pltshow,imshow):
+                
         file_path = self._bag_obj.bag_read.datafolder+f"/plots/plot_{step}.png"
         np_path = self._bag_obj.bag_read.datafolder+f"/plots/feature/plot_{step}.npy"
+
         if save or pltshow:
             fig, (ax1, ax2) = plt.subplots(2, 1)
             # make a little extra space between the subplots
@@ -610,15 +615,17 @@ class AlgoRunner:
             ax1.plot(features_dic['depth_peaks'],depth_line[features_dic["depth_peaks"]],"x")
 
             ax1.set_title(f"depth vs pixel index | frame: {step}")
+            ax1.set_ylim(0.3,9)
             
             
             ax2.plot(px_indexes,features_dic['subtracted'])
             ax2.plot(features_dic['subtracted_peaks'],features_dic['subtracted'][features_dic['subtracted_peaks']],"x")
             ax2.set_title(f"depth diff vs pixel index")
+            ax2.set_ylim(-0.5,0.5)
 
             if save:
                 np.save(np_path,np.array((depth_line)))
-                #plt.savefig(file_path)
+                plt.savefig(file_path)
             
             if pltshow:
                 plt.show()
@@ -628,14 +635,14 @@ class AlgoRunner:
         if imshow:
             img = cv2.imread(file_path)
             cv2.imshow("plot",img)
-
+        
 
 
 # Use hydra for configuration managing
 @hydra.main(version_base=None, config_path="../../config", config_name = "algo")
 def main(cfg):
     bag_obj = BagReader()
-    bag_obj.bag = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-11-08-10-13-11.bag'
+    bag_obj.bag = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-12-15-21-45.bag'
     algo_runner = AlgoRunner(bag_obj,cfg)
     algo_runner.run()
 

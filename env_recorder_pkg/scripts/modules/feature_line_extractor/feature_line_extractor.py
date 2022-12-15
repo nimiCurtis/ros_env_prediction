@@ -79,6 +79,13 @@ class FeatLineExtract:
                             's_clpeak_idx':s_clpeak_idx,
                             's_peaks_idx_mean':s_peaks_idx_mean})
         
+        df = df.round(decimals=4)
+
+        if os.path.exists(dir_path+"/features.csv"):
+            df0 = pd.read_csv(dir_path+"/features.csv")
+            if 'labels' in df0.keys():
+                df['labels'] = df0['labels']
+        
         # save to csv
         df.to_csv(dir_path+"/features.csv")
 
@@ -95,11 +102,15 @@ class FeatLineExtract:
         features_dic['depth_max'] = np.max(depth)
         features_dic['depth_min'] = np.min(depth)
         #peaks
-        depth_peaks, properties_line = ss.find_peaks(depth,distance=10)
+        depth_peaks, properties_line = ss.find_peaks(depth,distance=3,width=3)
         features_dic['depth_peaks'] = depth_peaks
         features_dic['depth_peaks_num'] = len(depth_peaks)
-        features_dic['depth_peaks_mean'] = np.mean(depth[depth_peaks])
-        features_dic['depth_peaks_idx_mean'] = np.mean(depth_peaks)
+        if features_dic['depth_peaks_num'] == 0:
+            features_dic['depth_peaks_mean'] = 0
+            features_dic['depth_peaks_idx_mean'] = 0 
+        else:
+            features_dic['depth_peaks_mean'] = np.mean(depth[depth_peaks])
+            features_dic['depth_peaks_idx_mean'] = np.mean(depth_peaks)
     
     # extract depth features
         features_dic['subtracted_mean'] = np.mean(subtracted)
@@ -107,19 +118,24 @@ class FeatLineExtract:
         features_dic['subtracted_max'] = np.max(subtracted)
         features_dic['subtracted_argmax'] = np.argmax(subtracted)
         #peaks
-        subtracted_peaks, properties_line = ss.find_peaks(subtracted,distance=20)
+        subtracted_peaks, properties_line = ss.find_peaks(subtracted,width=1,distance=3,threshold=0.015)
         features_dic['subtracted_peaks'] = subtracted_peaks
         features_dic['subtracted_peaks_num'] = len(subtracted_peaks)
-        features_dic['subtracted_peaks_mean'] = np.mean(subtracted[subtracted_peaks])
-        features_dic['subtracted_clpeak'] = subtracted_peaks[-1]
-        features_dic['subtracted_peaks_idx_mean'] = np.mean(subtracted_peaks)
+        if features_dic['subtracted_peaks_num'] ==0:
+            features_dic['subtracted_peaks_mean'] = 0
+            features_dic['subtracted_clpeak'] = 0
+            features_dic['subtracted_peaks_idx_mean'] = 0
+        else:
+            features_dic['subtracted_peaks_mean'] = np.mean(subtracted[subtracted_peaks])
+            features_dic['subtracted_clpeak'] = subtracted_peaks[-1]
+            features_dic['subtracted_peaks_idx_mean'] = np.mean(subtracted_peaks)
 
         return features_dic
 
 
 def main():
     extractor = FeatLineExtract()
-    extractor.extract_dir('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-11-08-10-13-11/plots/feature')
+    extractor.extract_dir('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-12-15-21-45/plots/feature')
 
 if __name__ == '__main__':
     main()
