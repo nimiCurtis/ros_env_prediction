@@ -52,13 +52,13 @@ NormalEstimation: null
 AlgoRunner:
   video:
     debug: true
-    save: false
+    save: true
     name: split
   
   plots:
     debug:
       online: false
-      offline: true
+      offline: false
     save_mode: false
     name: default
 

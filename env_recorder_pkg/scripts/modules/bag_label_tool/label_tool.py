@@ -127,8 +127,8 @@ class LabelTool:
 
 def main():
     label_tool = LabelTool()
-    video_file = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-12-15-23-00/video/15-10-21_split.mp4'
-    dataset_file = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-12-15-23-00/plots/feature/features.csv'
+    video_file = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-12-15-24-09/video/20-21-29_default.mp4'
+    dataset_file = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-12-15-24-09/plots/feature/features.csv'
     label_tool.set_dataset_labels(video_file,dataset_file)
 
 

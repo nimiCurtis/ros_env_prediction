@@ -10,8 +10,10 @@ import scipy.signal as ss
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-
-
+from joblib import load, dump
+from sklearn.compose import make_column_transformer
+from sklearn.preprocessing import StandardScaler
+from bag_label_tool.label_tool import EnvLabel
 # import bag reader and processor modules
 from bag_reader.bag_reader import BagReader
 from bag_processor import DepthHandler, ImageHandler
@@ -280,7 +282,7 @@ class AlgoRunner:
         # init bag object
         self._bag_obj = bag_obj 
         self._dfs = self._bag_obj.get_dfs()
-        
+        self._labels = pd.read_csv(self._bag_obj.bag_read.datafolder+"/plots/feature/features.csv")['labels'].to_list() 
         #init algo config
         self.intent_config = cfg.AlgoRunner.IntentRecognition
         self._save_run = cfg.AlgoRunner.save_run
@@ -296,6 +298,9 @@ class AlgoRunner:
         # set thresholds
         self.static_thresholds = self.intent_config.static_thresholds    
         self.dynamic_thresholds = {} 
+
+        self.transformer = load('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/models/transformer.joblib')
+        self.clf = load('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/models/rbf.joblib')
         
         if cfg.AlgoRunner.run_from is not None:
             self.start_step = cfg.AlgoRunner.run_from
@@ -457,7 +462,7 @@ class AlgoRunner:
         """This function run the main algorithem of the intention recognition system
             """
 
-        
+        scaler = StandardScaler()
         # init buffer for saving data
         algo_buffer = []
         frame_buffer = []
@@ -476,6 +481,7 @@ class AlgoRunner:
         for step in range(self.start_step,len(self)):
             # set input/output dictionaries
             out_data = {}
+            faetures_dic = {}
             in_data = self.get_current_step(step)
 
             # copy imgs and depth data
@@ -483,11 +489,11 @@ class AlgoRunner:
             depth =  dp.mm2meter(in_data["depth"].copy()) ## change in release to be depend on config
 
             # split depth 
-            depth_grid, h_grid, w_grid = dp.split_to_regions(depth)
+            #depth_grid, h_grid, w_grid = dp.split_to_regions(depth)
 
             # extract features
-            mean_grid = dp.get_regions_mean(depth_grid)    
-            std_grid = dp.get_regions_std(depth_grid)
+            #mean_grid = dp.get_regions_mean(depth_grid)    
+            #std_grid = dp.get_regions_std(depth_grid)
 
             # detect staires lines
             if self.stair_detector.enable:
@@ -505,16 +511,34 @@ class AlgoRunner:
             else:
                 feature_line = dp.get_feature_line(depth)
                 feature_line[0] = self.stair_detector.feature_line_filter(feature_line[0])
-                stair_dist = self.stair_detector.find_stair(feature_line[0])
+                #stair_dist = self.stair_detector.find_stair(feature_line[0])
+                
+    #             X_test = column_transformer.transform(X_test)
+    # X_test = pd.DataFrame(data=X_test, columns=column_transformer.get_feature_names_out())
                 
                 
-                out_data["feature_line"], out_data["stair_dist"] = feature_line, stair_dist
 
+            features_dic,ret = self.feature_line_extractor.extract(feature_line[0])
+            features_input = np.array(list(features_dic.values())).reshape(1,-1)
+            features_input = self.transformer.transform(features_input)
+            # predict_env = self.clf.predict(features_input)
+            #x = pd.DataFrame(features_dic,index=[0])
+            #numerical_cols = x.columns.to_list()
+    # Create a transformer object
+            
+
+            #x = self.transformer.transform(x)
+            
+            predict_env = self.clf.predict(features_input)
+            out_data["predict_env"] = predict_env[0]
             # update output dictionary and apply intent recognition system
-            out_data["mean"], out_data["std"] =  mean_grid, std_grid
+            #out_data["mean"], out_data["std"] =  mean_grid, std_grid
             #out_data["intent"] = self.intent_recognizer(out_data)
 
             # update buffer 
+            stair_dist = ret["stair"]
+            out_data["feature_line"], out_data["stair_dist"] = feature_line, stair_dist
+
             algo_buffer.append(out_data)         
             frame_buffer.append(in_data["depth_img"])
             
@@ -522,7 +546,7 @@ class AlgoRunner:
             self.vis_step(step,in_data,out_data)
             
             if self._plots_config.save_mode:
-                    self.plot_step(step,in_data,out_data,
+                    self.plot_step(step,features_dic,out_data,
                                 save=True,
                                 pltshow=self._plots_config.debug.online,
                                 imshow=False)
@@ -544,7 +568,7 @@ class AlgoRunner:
                     cv2.destroyAllWindows()   
                     raise Exception()
             else:
-                cv2.waitKey(0) 
+                cv2.waitKey(10) 
             
             
 
@@ -578,18 +602,30 @@ class AlgoRunner:
 
         #print(out_data["intent"])
         
+        predict = out_data["predict_env"]
         # plot staires lines
         pt1 = (out_data["feature_line"][1][0][0],out_data["feature_line"][1][0][1])
         pt2 = (out_data["feature_line"][1][-1][0],out_data["feature_line"][1][-1][1])
         #cv2.line(in_data["depth_img"],pt1,pt2,(255,0,0),1)
-        text = f"Distance to POI: {out_data['stair_dist'][0]:.3f},frame: {step}"
-        y0, dy = 20, 15
-        for i, line in enumerate(text.split(',')):
-            y = y0 + i*dy
-            cv2.putText(in_data["depth_img"],line,org = (20, y ),fontFace=cv2.FONT_HERSHEY_SIMPLEX,fontScale=0.4,color=(0,0,255),thickness=1)
+        if predict == self._labels[step]:
+            tcolor = (0,255,0)
+        else:
+            tcolor = (0,0,255)
 
-        cv2.circle(in_data["depth_img"],out_data["feature_line"][1][out_data["stair_dist"][1]],radius=5,color=(0,0,255))
+        if predict!=1 and out_data['stair_dist'] is not None:
+            text = f"Distance to POI: {out_data['stair_dist'][0]:.3f}[meters],frame: {step},env predict: {EnvLabel(predict).name},env real: {EnvLabel(self._labels[step]).name}"
+            y0, dy = 20, 15
+            for i, line in enumerate(text.split(',')):
+                y = y0 + i*dy
+                cv2.putText(in_data["depth_img"],line,org = (20, y ),fontFace=cv2.FONT_HERSHEY_SIMPLEX,fontScale=0.4,color=tcolor,thickness=1)
 
+            cv2.circle(in_data["depth_img"],out_data["feature_line"][1][out_data["stair_dist"][1]],radius=5,color=(0,0,255))
+        else:
+            text = f"frame: {step},env predict: {EnvLabel(predict).name},env real: {EnvLabel(self._labels[step]).name}"
+            y0, dy = 20, 15
+            for i, line in enumerate(text.split(',')):
+                y = y0 + i*dy
+                cv2.putText(in_data["depth_img"],line,org = (20, y ),fontFace=cv2.FONT_HERSHEY_SIMPLEX,fontScale=0.4,color=tcolor,thickness=1)
 
         if self.stair_detector.enable:
             if out_data["lines"] is not None:           
@@ -600,7 +636,7 @@ class AlgoRunner:
         # re-drawing the figure
         cv2.imshow("rgb", in_data["depth_img"])
 
-    def plot_step(self,step,in_data,out_data,save,pltshow,imshow):
+    def plot_step(self,step,features_dic,out_data,save,pltshow,imshow):
                 
         file_path = self._bag_obj.bag_read.datafolder+f"/plots/plot_{step}.png"
         np_path = self._bag_obj.bag_read.datafolder+f"/plots/feature/plot_{step}.npy"
@@ -612,7 +648,7 @@ class AlgoRunner:
             px_indexes = out_data["feature_line"][1][:,1]
             depth_line = out_data["feature_line"][0][::]
             delta = len(depth_line)/3
-            features_dic = self.feature_line_extractor.extract(depth_line)
+            
             ax1.plot(px_indexes,depth_line,'b')
             #ax1.plot(out_data["stair_dist"][1],out_data["stair_dist"][0],marker="o", markersize=8, color="red")
             ax1.plot(features_dic['depth_peaks'],depth_line[features_dic["depth_peaks"]],"x")
@@ -647,7 +683,7 @@ class AlgoRunner:
 @hydra.main(version_base=None, config_path="../../config", config_name = "algo")
 def main(cfg):
     bag_obj = BagReader()
-    bag_obj.bag = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-12-15-23-00.bag'
+    bag_obj.bag = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-12-15-24-09.bag'
     algo_runner = AlgoRunner(bag_obj,cfg)
     algo_runner.run()
 
