@@ -544,7 +544,7 @@ class AlgoRunner:
                     cv2.destroyAllWindows()   
                     raise Exception()
             else:
-                cv2.waitKey(1) 
+                cv2.waitKey(0) 
             
             
 
@@ -571,14 +571,17 @@ class AlgoRunner:
             Exception: _description_
         """                
         
+        cv2.line(in_data["depth_img"],(0,int(in_data["depth_img"].shape[0]/3)),(int(in_data["depth_img"].shape[1]),int(in_data["depth_img"].shape[0]/3)),color=(0,255,0),thickness=1)
+        cv2.line(in_data["depth_img"],(0,int(2*in_data["depth_img"].shape[0]/3)),(int(in_data["depth_img"].shape[1]),int(2*in_data["depth_img"].shape[0]/3)),color=(0,255,0),thickness=1)
+        cv2.line(in_data["depth_img"],(int(in_data["depth_img"].shape[1]/2),0),(int(in_data["depth_img"].shape[1]/2),int(in_data["depth_img"].shape[0])),color=(255,0,0),thickness=1)
         # printing intentiokn state
 
         #print(out_data["intent"])
-
+        
         # plot staires lines
         pt1 = (out_data["feature_line"][1][0][0],out_data["feature_line"][1][0][1])
         pt2 = (out_data["feature_line"][1][-1][0],out_data["feature_line"][1][-1][1])
-        cv2.line(in_data["depth_img"],pt1,pt2,(255,0,0),1)
+        #cv2.line(in_data["depth_img"],pt1,pt2,(255,0,0),1)
         text = f"Distance to POI: {out_data['stair_dist'][0]:.3f},frame: {step}"
         y0, dy = 20, 15
         for i, line in enumerate(text.split(',')):
@@ -608,17 +611,20 @@ class AlgoRunner:
             fig.subplots_adjust(hspace=0.5)
             px_indexes = out_data["feature_line"][1][:,1]
             depth_line = out_data["feature_line"][0][::]
-
+            delta = len(depth_line)/3
             features_dic = self.feature_line_extractor.extract(depth_line)
             ax1.plot(px_indexes,depth_line,'b')
             #ax1.plot(out_data["stair_dist"][1],out_data["stair_dist"][0],marker="o", markersize=8, color="red")
             ax1.plot(features_dic['depth_peaks'],depth_line[features_dic["depth_peaks"]],"x")
-
+            ax1.axvline(x=delta,color='b')
+            ax1.axvline(x=2*delta,color='b')
             ax1.set_title(f"depth vs pixel index | frame: {step}")
             ax1.set_ylim(0.3,9)
 
             ax2.plot(px_indexes,features_dic['gradient'])
             ax2.plot(features_dic['gradient_peaks'],features_dic['gradient'][features_dic['gradient_peaks']],"x")
+            ax2.axvline(x=delta,color='b')
+            ax2.axvline(x=2*delta,color='b')
             ax2.set_title(f"depth grad vs pixel index")
             ax2.set_ylim(-0.45,0.45)
 
@@ -637,7 +643,7 @@ class AlgoRunner:
         
 
 
-# Use hydra for configuration managing
+# Use hydra for configuration managin
 @hydra.main(version_base=None, config_path="../../config", config_name = "algo")
 def main(cfg):
     bag_obj = BagReader()

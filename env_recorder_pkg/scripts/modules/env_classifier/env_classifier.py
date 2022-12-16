@@ -10,12 +10,12 @@ from sklearn.preprocessing import StandardScaler
 	
 def main():
     
-    #df = pd.read_csv('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-12-15-21-45/plots/feature/features.csv',index_col=0)
-    df = pd.read_csv('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-12-15-23-00/plots/feature/features.csv',index_col=0)
+    df = pd.read_csv('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-12-15-21-45/plots/feature/features.csv',index_col=0)
+    #df = pd.read_csv('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-12-15-23-00/plots/feature/features.csv',index_col=0)
     #df = df.append(df1)
 
-    #X = df.drop(['labels'],axis=1)
-    X = df.drop(['labels','g_mean','g_peaks_num','g_std','d_peaks_mean','d_peaks_num'],axis=1)
+    X = df.drop(['labels'],axis=1)
+    #X = df.drop(['labels','ug_mean','ug_std','ud_std'],axis=1)
     y = df['labels']
 
 
