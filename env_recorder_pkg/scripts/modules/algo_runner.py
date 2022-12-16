@@ -641,7 +641,7 @@ class AlgoRunner:
 @hydra.main(version_base=None, config_path="../../config", config_name = "algo")
 def main(cfg):
     bag_obj = BagReader()
-    bag_obj.bag = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-12-15-21-45.bag'
+    bag_obj.bag = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-12-15-23-00.bag'
     algo_runner = AlgoRunner(bag_obj,cfg)
     algo_runner.run()
 

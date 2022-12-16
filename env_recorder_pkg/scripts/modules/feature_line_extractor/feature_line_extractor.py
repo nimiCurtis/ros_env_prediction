@@ -96,35 +96,46 @@ class FeatLineExtract:
         df.to_csv(dir_path+"/features.csv")
 
     def extract(self,depth):
+        delta = int(len(depth)/3)
+        depth_up = depth[:delta]
+        depth_mid = depth[delta:2*delta]
+        depth_bot = depth[2*delta:]
+
         gradient = np.gradient(depth)
         # extract depth features
         features_dic = {}
 
         features_dic['gradient'] = gradient
 
-        features_dic['depth_mean'] = np.mean(depth)
-        features_dic['depth_std'] = np.std(depth)
-        features_dic['depth_max'] = np.max(depth)
-        features_dic['depth_min'] = np.min(depth)
+        features_dic['depth_mean'] = np.mean(depth_mid)
+        features_dic['depth_std'] = np.std(depth_mid)
+        features_dic['depth_max'] = np.max(depth_mid)
+        features_dic['depth_min'] = np.min(depth_mid)
         
         #peaks
-        depth_peaks, properties_line = ss.find_peaks(depth,distance=3,width=3)
+        depth_peaks, d_peaks_properties = ss.find_peaks(depth_mid,distance=3,width=3)
+        depth_minima, d_min_peaks_properties =  ss.find_peaks(-depth_mid,distance=3,width=3)
+        depth_peaks  = np.concatenate([depth_peaks,depth_minima]) + delta
         features_dic['depth_peaks'] = depth_peaks
         features_dic['depth_peaks_num'] = len(depth_peaks)
         if features_dic['depth_peaks_num'] == 0:
             features_dic['depth_peaks_mean'] = 0
             features_dic['depth_peaks_idx_mean'] = 0 
         else:
-            features_dic['depth_peaks_mean'] = np.mean(depth[depth_peaks])
+            features_dic['depth_peaks_mean'] = np.mean((depth[depth_peaks]))
             features_dic['depth_peaks_idx_mean'] = np.mean(depth_peaks)
 
         features_dic['gradient_mean'] = np.mean(gradient)
         features_dic['gradient_std'] = np.std(gradient)
         features_dic['gradient_max'] = np.max(gradient)
         features_dic['gradient_min'] = np.min(gradient)
-        features_dic['gradient_argmax'] = np.argmax(gradient)
+        features_dic['gradient_argmax'] = np.argmax(np.abs(gradient))
 
-        gradient_peaks, properties_line = ss.find_peaks(gradient,width=1,distance=1,threshold=0.003)
+        gradient_peaks, g_peaks_properties = ss.find_peaks(gradient,width=1,distance=1,threshold=0.003)
+        gradient_minima, d_min_peaks_properties =  ss.find_peaks(-gradient,width=1,distance=1,threshold=0.003)
+        gradient_peaks  = np.concatenate([gradient_peaks,gradient_minima])
+        
+        
         features_dic['gradient_peaks'] = gradient_peaks
         features_dic['gradient_peaks_num'] = len(gradient_peaks)
         if features_dic['gradient_peaks_num'] ==0:
@@ -132,7 +143,7 @@ class FeatLineExtract:
             features_dic['gradient_clpeak'] = 0
             features_dic['gradient_peaks_idx_mean'] = 0
         else:
-            features_dic['gradient_peaks_mean'] = np.mean(gradient[gradient_peaks])
+            features_dic['gradient_peaks_mean'] = np.mean(np.abs(gradient[gradient_peaks]))
             features_dic['gradient_clpeak'] = gradient_peaks[-1]
             features_dic['gradient_peaks_idx_mean'] = np.mean(gradient_peaks)
 

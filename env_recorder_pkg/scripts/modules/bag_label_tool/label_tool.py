@@ -16,6 +16,10 @@ class EnvLabel(Enum):
     GL = 1
     SA = 2
     SD = 3
+    
+    
+    
+    UN = 9
 
 
 class LabelTool:
@@ -93,7 +97,7 @@ class LabelTool:
 
         if len(labels_dict)==frame_count:
             labels_list = self.return_labels_as_list(labels_dict)
-            df = pd.read_csv(dataset_file)
+            df = pd.read_csv(dataset_file,index_col=0)
             df['labels'] = labels_list
             df.to_csv(dataset_file)
             print("[Info]  Labels saved")
