@@ -19,7 +19,12 @@ from cv_bridge import CvBridge, CvBridgeError
 
 import matplotlib.pyplot as plt
 
-# import from parallel module
+
+
+# import from parallel modules
+sys.path.insert(0, '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/scripts/modules/bag_parser')
+from bag_parser import Parser
+
 sys.path.insert(0, '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/scripts/modules/bag_processor')
 from bag_processor import DepthHandler
 dp = DepthHandler()
@@ -134,6 +139,10 @@ class BagReader():
             if ((topic_row['Types']=='sensor_msgs/Image')or(topic_row['Types']=='stereo_msgs/DisparityImage')) and  topic_row['Message Count']!=0: # stop when topic is Image/Stereo kind and its not empty
                 dfs = self.init_image_df(dfs,topic_row['Topics']) 
         
+
+
+
+
         # get df of topics synced with imu
         dfs["synced"] = self.sync_with_imu(dfs)
         synced_file = os.path.join(self.bag_read.datafolder,"synced.csv")
@@ -267,7 +276,7 @@ class BagReader():
 
         return frame_path_list, numpy_path_list
 
-    def save_np_data(self,values_array:list,dir:str)->str:
+    def save_np_data(self,values_array:list,dir:str)->str: ### make it more generic to any np file
         """This function save values of the image into .npy file 
 
         Args:
@@ -302,14 +311,40 @@ class BagReader():
             df_sync = pd.merge(df_sync,df[["header.stamp.secs","header.stamp.nsecs",f"np_path_{key}",f"frame_path_{key}"]],on=["header.stamp.secs","header.stamp.nsecs"],how="right")    
             
         return df_sync
+    
+    def depth_line_extract(self,depth): #### need to merge it to the extract images
+            depth_line = dp.get_feature_line(depth)[0]
+            depth_line = dp.feature_line_filter(depth_line)
+
+            return depth_line
+
+def export_bag(bag_obj):
+    if bag_obj.MetaData["exported"] == False:
+            bag_obj.export()
+    else:
+            print(f"[INFO]  Bag {bag_obj.bag} already exported. Not Exporting.")
+
+
+def main():
+    bag_obj = BagReader()
+    args = Parser.get_args()
+    bag_file = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-11-08-10-07-30.bag' # default
+
+    if args.multiple_bags_folder is not None:
+        for filename in os.scandir(args.multiple_bags_folder): 
+            if filename.is_file() and filename.path.split('.')[-1]=='bag':
+                bag_file = filename.path
+                bag_obj.bag = bag_file
+                export_bag(bag_obj)
+
+    else:
+        if args.single_bag is not None:
+            bag_file = args.single_bag
+        
+        bag_obj.bag = bag_file
+        export_bag(bag_obj)
+
+
 
 if __name__ == '__main__':
-    bag_obj = BagReader()
-    bag_obj.bag = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-11-08-10-07-30.bag'
-    data_dfs = bag_obj.get_dfs()
-    depth_df = data_dfs['depth']
-    conf_df = data_dfs['confidence']
-    depth = cv2.imread(depth_df.frame_path[200])
-    conf = np.load(conf_df.np_path[200])
-    plt.imshow(depth)
-
+    main()

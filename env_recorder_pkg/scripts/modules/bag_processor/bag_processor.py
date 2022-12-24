@@ -454,6 +454,28 @@ class DepthHandler(ImageHandler):
         
         return [feature_vals,feature_index, (xmid,ymid)]
 
+    def feature_line_filter(self,depth_line:np.ndarray)->np.ndarray:
+        fdepth_line = depth_line
+        j_flag=False
+        if fdepth_line[0]==0:fdepth_line[0]= fdepth_line[fdepth_line!=0][0]
+        if fdepth_line[-1]==0:fdepth_line[-1]= fdepth_line[fdepth_line!=0][-1]
+
+        for i in range(len(fdepth_line-1)):
+            if fdepth_line[i]==0:
+                if not j_flag:
+                    for j in range(i+1,len(fdepth_line)):
+                        if fdepth_line[j]!=0:
+                            j_flag=True
+                            fdepth_line[i]=np.mean([fdepth_line[i-1],fdepth_line[j]])
+                            break
+                else:
+                    fdepth_line[i]=np.mean([fdepth_line[i-1],fdepth_line[j]])
+            else:
+                if j_flag:
+                    j_flag=False
+        
+        return fdepth_line
+
     def get_depth_normalization(self, img:np.ndarray)->np.ndarray:
         """Normalize the depth image to fall between 0 (black) and 1 (white)
 

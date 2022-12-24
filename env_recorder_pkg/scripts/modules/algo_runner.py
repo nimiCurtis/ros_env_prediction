@@ -217,28 +217,6 @@ class StairDetector:
 
         return eliminate
 
-    def feature_line_filter(self,depth_line:np.ndarray)->np.ndarray:
-        fdepth_line = depth_line
-        j_flag=False
-        if fdepth_line[0]==0:fdepth_line[0]= fdepth_line[fdepth_line!=0][0]
-        if fdepth_line[-1]==0:fdepth_line[-1]= fdepth_line[fdepth_line!=0][-1]
-
-        for i in range(len(fdepth_line-1)):
-            if fdepth_line[i]==0:
-                if not j_flag:
-                    for j in range(i+1,len(fdepth_line)):
-                        if fdepth_line[j]!=0:
-                            j_flag=True
-                            fdepth_line[i]=np.mean([fdepth_line[i-1],fdepth_line[j]])
-                            break
-                else:
-                    fdepth_line[i]=np.mean([fdepth_line[i-1],fdepth_line[j]])
-            else:
-                if j_flag:
-                    j_flag=False
-        
-        return fdepth_line
-
     def find_stair(self,depth_line:np.ndarray)->np.ndarray:
         subtracted = np.subtract(depth_line[1:],depth_line[:-1])
         subtracted = np.concatenate([[0],subtracted])
@@ -501,7 +479,7 @@ class AlgoRunner:
                 if len(lines)>0:
                     #d = ss.medfilt2d(depth.copy(),3)
                     feature_line = dp.get_feature_line(lines,depth)
-                    feature_line[0] = self.stair_detector.feature_line_filter(feature_line[0])
+                    feature_line[0] = dp.feature_line_filter(feature_line[0])
                     stair_dist = self.stair_detector.find_stair(feature_line[0])
                     
                     out_data["feature_line"], out_data["stair_dist"] = feature_line, stair_dist
@@ -510,7 +488,7 @@ class AlgoRunner:
             
             else:
                 feature_line = dp.get_feature_line(depth)
-                feature_line[0] = self.stair_detector.feature_line_filter(feature_line[0])
+                feature_line[0] = dp.feature_line_filter(feature_line[0])
                 #stair_dist = self.stair_detector.find_stair(feature_line[0])
                 
     #             X_test = column_transformer.transform(X_test)

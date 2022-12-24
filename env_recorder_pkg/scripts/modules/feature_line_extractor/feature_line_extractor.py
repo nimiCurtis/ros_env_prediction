@@ -88,14 +88,10 @@ class FeatLineExtract:
             file_path =  os.path.join(dir_path, filename)
             if os.path.isfile(file_path):
 
-
-            
-
             #load np arrays
                 depth = np.load(file_path)
             
                 features_dic,_ = self.extract(depth)
-            
 
         # append
                 d_mean.append(features_dic['depth_mean'])
@@ -238,15 +234,10 @@ class FeatLineExtract:
         depth_mid = depth[delta:2*delta].copy()
         depth_bot = depth[2*delta:].copy()
 
-        
         # extract depth features
         features_dic = {}
         return_dic = {}
-        # features_dic.update(self.extract(depth))
-        # features_dic.update(self.extract(depth,stop=delta,name='up'))
-        # features_dic.update(self.extract(depth,start=delta,stop=2*delta,name='mid'))
-        # features_dic.update(self.extract(depth,start=2*delta,name='bot'))
-        
+
         gradient = np.gradient(depth)
         return_dic['gradient'] = gradient.copy()
         gradient_up = gradient[:delta].copy()

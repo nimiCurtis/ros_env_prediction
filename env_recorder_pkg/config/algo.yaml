@@ -52,8 +52,8 @@ NormalEstimation: null
 AlgoRunner:
   video:
     debug: true
-    save: true
-    name: split
+    save: false
+    name: default
   
   plots:
     debug:
