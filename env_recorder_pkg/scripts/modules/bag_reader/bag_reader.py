@@ -312,18 +312,13 @@ class BagReader():
             
         return df_sync
     
-    def depth_line_extract(self,depth): #### need to merge it to the extract images
-            depth_line = dp.get_feature_line(depth)[0]
-            depth_line = dp.feature_line_filter(depth_line)
-
-            return depth_line
+    
 
 def export_bag(bag_obj):
     if bag_obj.MetaData["exported"] == False:
             bag_obj.export()
     else:
             print(f"[INFO]  Bag {bag_obj.bag} already exported. Not Exporting.")
-
 
 def main():
     bag_obj = BagReader()

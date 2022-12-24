@@ -1,6 +1,6 @@
 # imports
 import os
-import hydra
+import sys
 from omegaconf import DictConfig
 from datetime import datetime
 from typing import Union
@@ -11,14 +11,36 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
+# import from parallel modules
+sys.path.insert(0, '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/scripts/modules/bag_parser')
+from bag_parser import Parser
+
+sys.path.insert(0, '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/scripts/modules/bag_reader')
+from bag_reader import BagReader
+
+sys.path.insert(0, '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/scripts/modules/bag_processor')
+from bag_processor import DepthHandler
+dp = DepthHandler()
+
 class FeatLineExtract:
 
     def __init__(self) -> None:
         
         pass
 
-    def extract_dir(self,dir_path):
+    def extract_stats_from_bag(self,bag_obj,save_dline,save_plots):
         # arrays init
+        bag_dir = bag_obj.bag_read.datafolder
+        feature_line_dir = os.path.join(bag_dir,"feature_line")
+        plots_dir = os.path.join(feature_line_dir,"plots")
+        dline_dir = os.path.join(feature_line_dir,"depth_line")
+        if not os.path.exists(feature_line_dir):
+            os.mkdir(feature_line_dir)
+            if not os.path.exists(plots_dir):os.mkdir(plots_dir)
+            if not os.path.exists(dline_dir):os.mkdir(dline_dir)
+
+        dfs = bag_obj.get_dfs()
+        dfile_list = dfs['depth'].np_path.to_list()
 
         # all
         d_mean = []
@@ -82,80 +104,94 @@ class FeatLineExtract:
         bg_min = []
         bg_peaks_num = []
         bg_peaks_mean = []
-        # iterate dir
-        for i in range(len(os.listdir(dir_path))-2):
-            filename = f'plot_{i}.npy'
-            file_path =  os.path.join(dir_path, filename)
-            if os.path.isfile(file_path):
-
-            #load np arrays
-                depth = np.load(file_path)
+        
+        count = 0
+        for dfile in dfile_list:
+            depth = np.load(dfile)
+            depth = dp.mm2meter(depth)
+            dline = self.depth_line_extract(depth)
+            if save_dline:
+                dfile = os.path.join(dline_dir,f"depth_line_{count}")
+                np.save(dfile,dline)
             
-                features_dic,_ = self.extract(depth)
+            # if save_plot:
+            #     # save plot
+            #     pass
+            
 
-        # append
-                d_mean.append(features_dic['depth_mean'])
-                d_std.append(features_dic['depth_std'])
-                d_max.append(features_dic['depth_max'])
-                d_min.append(features_dic['depth_min'])
-                d_peaks_num.append(features_dic['depth_peaks_num'])
-                d_peaks_mean.append(features_dic['depth_peaks_mean'])
-                d_peaks_idx_mean.append(features_dic['depth_peaks_idx_mean'])
-                g_mean.append(features_dic['gradient_mean'])
-                g_std.append(features_dic['gradient_std'])
-                g_max.append(features_dic['gradient_max'])
-                g_min.append(features_dic['gradient_min'])
-                g_argmax.append(features_dic['gradient_argmax'])
-                g_peaks_num.append(features_dic['gradient_peaks_num'])
-                g_peaks_mean.append(features_dic['gradient_peaks_mean'])
-                g_clpeak_idx.append(features_dic['gradient_clpeak'])
-                g_peaks_idx_mean.append(features_dic['gradient_peaks_idx_mean'])
+            features_dic,_ = self.extract(dline)
 
-                ### up
-                ud_mean.append(features_dic['up_depth_mean'])
-                ud_std.append(features_dic['up_depth_std'])
-                ud_max.append(features_dic['up_depth_max'])
-                ud_min.append(features_dic['up_depth_min'])
-                ud_delta.append(features_dic['up_depth_delta'])
-                ud_peaks_num.append(features_dic['up_depth_peaks_num'])
-                ud_peaks_mean.append(features_dic['up_depth_peaks_mean'])
-                ug_mean.append(features_dic['up_gradient_mean'])
-                ug_std.append(features_dic['up_gradient_std'])
-                ug_max.append(features_dic['up_gradient_max'])
-                ug_min.append(features_dic['up_gradient_min'])
-                ug_peaks_num.append(features_dic['up_gradient_peaks_num'])
-                ug_peaks_mean.append(features_dic['up_gradient_peaks_mean'])
+    # append
+            d_mean.append(features_dic['depth_mean'])
+            d_std.append(features_dic['depth_std'])
+            d_max.append(features_dic['depth_max'])
+            d_min.append(features_dic['depth_min'])
+            d_peaks_num.append(features_dic['depth_peaks_num'])
+            d_peaks_mean.append(features_dic['depth_peaks_mean'])
+            d_peaks_idx_mean.append(features_dic['depth_peaks_idx_mean'])
+            g_mean.append(features_dic['gradient_mean'])
+            g_std.append(features_dic['gradient_std'])
+            g_max.append(features_dic['gradient_max'])
+            g_min.append(features_dic['gradient_min'])
+            g_argmax.append(features_dic['gradient_argmax'])
+            g_peaks_num.append(features_dic['gradient_peaks_num'])
+            g_peaks_mean.append(features_dic['gradient_peaks_mean'])
+            g_clpeak_idx.append(features_dic['gradient_clpeak'])
+            g_peaks_idx_mean.append(features_dic['gradient_peaks_idx_mean'])
 
-                ### mid
-                md_mean.append(features_dic['mid_depth_mean'])
-                md_std.append(features_dic['mid_depth_std'])
-                md_max.append(features_dic['mid_depth_max'])
-                md_min.append(features_dic['mid_depth_min'])
-                md_peaks_num.append(features_dic['mid_depth_peaks_num'])
-                md_peaks_mean.append(features_dic['mid_depth_peaks_mean'])
-                mg_mean.append(features_dic['mid_gradient_mean'])
-                mg_std.append(features_dic['mid_gradient_std'])
-                mg_max.append(features_dic['mid_gradient_max'])
-                mg_min.append(features_dic['mid_gradient_min'])
-                mg_peaks_num.append(features_dic['mid_gradient_peaks_num'])
-                mg_peaks_mean.append(features_dic['mid_gradient_peaks_mean'])
+            ### up
+            ud_mean.append(features_dic['up_depth_mean'])
+            ud_std.append(features_dic['up_depth_std'])
+            ud_max.append(features_dic['up_depth_max'])
+            ud_min.append(features_dic['up_depth_min'])
+            ud_delta.append(features_dic['up_depth_delta'])
+            ud_peaks_num.append(features_dic['up_depth_peaks_num'])
+            ud_peaks_mean.append(features_dic['up_depth_peaks_mean'])
+            ug_mean.append(features_dic['up_gradient_mean'])
+            ug_std.append(features_dic['up_gradient_std'])
+            ug_max.append(features_dic['up_gradient_max'])
+            ug_min.append(features_dic['up_gradient_min'])
+            ug_peaks_num.append(features_dic['up_gradient_peaks_num'])
+            ug_peaks_mean.append(features_dic['up_gradient_peaks_mean'])
 
-                #### bot
-                bd_mean.append(features_dic['bot_depth_mean'])
-                bd_std.append(features_dic['bot_depth_std'])
-                bd_max.append(features_dic['bot_depth_max'])
-                bd_min.append(features_dic['bot_depth_min'])
-                bd_peaks_num.append(features_dic['bot_depth_peaks_num'])
-                bd_peaks_mean.append(features_dic['bot_depth_peaks_mean'])
-                bg_mean.append(features_dic['bot_gradient_mean'])
-                bg_std.append(features_dic['bot_gradient_std'])
-                bg_max.append(features_dic['bot_gradient_max'])
-                bg_min.append(features_dic['bot_gradient_min'])
-                bg_peaks_num.append(features_dic['bot_gradient_peaks_num'])
-                bg_peaks_mean.append(features_dic['bot_gradient_peaks_mean'])
+            ### mid
+            md_mean.append(features_dic['mid_depth_mean'])
+            md_std.append(features_dic['mid_depth_std'])
+            md_max.append(features_dic['mid_depth_max'])
+            md_min.append(features_dic['mid_depth_min'])
+            md_peaks_num.append(features_dic['mid_depth_peaks_num'])
+            md_peaks_mean.append(features_dic['mid_depth_peaks_mean'])
+            mg_mean.append(features_dic['mid_gradient_mean'])
+            mg_std.append(features_dic['mid_gradient_std'])
+            mg_max.append(features_dic['mid_gradient_max'])
+            mg_min.append(features_dic['mid_gradient_min'])
+            mg_peaks_num.append(features_dic['mid_gradient_peaks_num'])
+            mg_peaks_mean.append(features_dic['mid_gradient_peaks_mean'])
+
+            #### bot
+            bd_mean.append(features_dic['bot_depth_mean'])
+            bd_std.append(features_dic['bot_depth_std'])
+            bd_max.append(features_dic['bot_depth_max'])
+            bd_min.append(features_dic['bot_depth_min'])
+            bd_peaks_num.append(features_dic['bot_depth_peaks_num'])
+            bd_peaks_mean.append(features_dic['bot_depth_peaks_mean'])
+            bg_mean.append(features_dic['bot_gradient_mean'])
+            bg_std.append(features_dic['bot_gradient_std'])
+            bg_max.append(features_dic['bot_gradient_max'])
+            bg_min.append(features_dic['bot_gradient_min'])
+            bg_peaks_num.append(features_dic['bot_gradient_peaks_num'])
+            bg_peaks_mean.append(features_dic['bot_gradient_peaks_mean'])
+            
+
+
+            if save_plots:
                 
-            else:
                 pass
+
+
+
+            count+=1
+        
 
         # create data_frame
         df = pd.DataFrame({'d_mean':d_mean,
@@ -220,13 +256,14 @@ class FeatLineExtract:
         
         df = df.round(decimals=4)
 
-        if os.path.exists(dir_path+"/features.csv"):
-            df0 = pd.read_csv(dir_path+"/features.csv")
+        if os.path.exists(feature_line_dir+"/features.csv"):
+            df0 = pd.read_csv(feature_line_dir+"/features.csv")
             if 'labels' in df0.keys():
                 df['labels'] = df0['labels']
         
         # save to csv
-        df.to_csv(dir_path+"/features.csv")
+        df.to_csv(feature_line_dir+"/features.csv")
+        print(f"[INFO]  Feature line stats of {bag_obj.bag} saved.")
 
     def extract(self,depth):
         delta = int(len(depth)/3)
@@ -391,15 +428,37 @@ class FeatLineExtract:
             return_dic["stair"] = [depth[np.argmax(gradient_bot)+2*delta],np.argmax(gradient_bot)+2*delta]
             features_dic['bot_gradient_peaks_mean'] = np.mean(np.abs(gradient[gradient_peaks]))
 
-
-
         return features_dic, return_dic
+
+    def depth_line_extract(self,depth): #### need to merge it to the extract images
+            depth_line = dp.get_feature_line(depth)[0]
+            depth_line = dp.feature_line_filter(depth_line)
+
+            return depth_line
 
 
 
 def main():
+    bag_obj = BagReader()
     extractor = FeatLineExtract()
-    extractor.extract_dir('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-12-15-24-09/plots/feature')
+    args = Parser.get_args()
+    # default
+    bag_file = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-12-15-23-00.bag' 
+
+    if args.multiple_bags_folder is not None:
+
+        for filename in os.scandir(args.multiple_bags_folder): 
+            if filename.is_file() and filename.path.split('.')[-1]=='bag':
+                bag_file = filename.path
+                bag_obj.bag = bag_file
+                extractor.extract_stats_from_bag(bag_obj,save_dline=False,save_plots=True)
+
+    else:
+        if args.single_bag is not None:
+            bag_file = args.single_bag
+        
+        bag_obj.bag = bag_file
+        extractor.extract_stats_from_bag(bag_obj,save_dline=False,save_plots=True)
 
 if __name__ == '__main__':
     main()

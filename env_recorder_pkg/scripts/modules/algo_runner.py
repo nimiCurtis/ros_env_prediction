@@ -654,7 +654,7 @@ class AlgoRunner:
         if imshow:
             img = cv2.imread(file_path)
             cv2.imshow("plot",img)
-        
+
 
 
 # Use hydra for configuration managin
