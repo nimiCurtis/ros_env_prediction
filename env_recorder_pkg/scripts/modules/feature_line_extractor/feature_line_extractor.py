@@ -15,8 +15,8 @@ import matplotlib.animation as animation
 sys.path.insert(0, '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/scripts/modules/bag_parser')
 from bag_parser import Parser
 
-sys.path.insert(0, '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/scripts/modules/bag_reader')
-from bag_reader import BagReader
+sys.path.insert(0, '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/scripts/modules')
+from bag_reader.bag_reader import BagReader
 
 sys.path.insert(0, '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/scripts/modules/bag_processor')
 from bag_processor import DepthHandler
@@ -111,15 +111,15 @@ class FeatLineExtract:
             depth = dp.mm2meter(depth)
             dline = self.depth_line_extract(depth)
             if save_dline:
-                dfile = os.path.join(dline_dir,f"depth_line_{count}")
-                np.save(dfile,dline)
+                file_name = os.path.join(dline_dir,f"depth_line_{count}")
+                np.save(file_name,dline)
             
             # if save_plot:
             #     # save plot
             #     pass
             
 
-            features_dic,_ = self.extract(dline)
+            features_dic,ret_dic = self.extract(dline)
 
     # append
             d_mean.append(features_dic['depth_mean'])
@@ -185,8 +185,8 @@ class FeatLineExtract:
 
 
             if save_plots:
-                
-                pass
+                file_path = plots_dir+f"/plot_{count}.png"
+                self.plot_feature_line(count,dline,ret_dic,file_path=file_path,save_plots=save_plots)
 
 
 
@@ -435,6 +435,40 @@ class FeatLineExtract:
             depth_line = dp.feature_line_filter(depth_line)
 
             return depth_line
+    
+    def plot_feature_line(self,count,dline,ret_dic,file_path=None,save_plots=False,pltshow=False):
+        
+
+        fig, (ax1, ax2) = plt.subplots(2, 1)
+        # make a little extra space between the subplots
+        fig.subplots_adjust(hspace=0.5)
+        #px_indexes = out_data["feature_line"][1][:,1]
+        px_indexes = range(len(dline))
+        depth_line = dline
+        delta = len(depth_line)/3
+        
+        ax1.plot(px_indexes,depth_line,'b')
+        #ax1.plot(out_data["stair_dist"][1],out_data["stair_dist"][0],marker="o", markersize=8, color="red")
+        ax1.plot(ret_dic['depth_peaks'],depth_line[ret_dic["depth_peaks"]],"x")
+        ax1.axvline(x=delta,color='b')
+        ax1.axvline(x=2*delta,color='b')
+        ax1.set_title(f"depth vs pixel index | frame: {count}")
+        ax1.set_ylim(0.3,9)
+
+        ax2.plot(px_indexes,ret_dic['gradient'])
+        ax2.plot(ret_dic['gradient_peaks'],ret_dic['gradient'][ret_dic['gradient_peaks']],"x")
+        ax2.axvline(x=delta,color='b')
+        ax2.axvline(x=2*delta,color='b')
+        ax2.set_title(f"depth grad vs pixel index")
+        ax2.set_ylim(-0.45,0.45)
+
+        if save_plots and file_path is not None:
+            plt.savefig(file_path)
+
+        if pltshow:
+            plt.show()
+
+        plt.close(fig)
 
 
 
@@ -458,7 +492,7 @@ def main():
             bag_file = args.single_bag
         
         bag_obj.bag = bag_file
-        extractor.extract_stats_from_bag(bag_obj,save_dline=False,save_plots=True)
+        extractor.extract_stats_from_bag(bag_obj,save_dline=True,save_plots=False)
 
 if __name__ == '__main__':
     main()

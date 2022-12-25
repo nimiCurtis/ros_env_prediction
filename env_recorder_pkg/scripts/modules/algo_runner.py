@@ -260,7 +260,7 @@ class AlgoRunner:
         # init bag object
         self._bag_obj = bag_obj 
         self._dfs = self._bag_obj.get_dfs()
-        self._labels = pd.read_csv(self._bag_obj.bag_read.datafolder+"/plots/feature/features.csv")['labels'].to_list() 
+        self._labels = pd.read_csv(self._bag_obj.bag_read.datafolder+"/feature_line/features.csv")['labels'].to_list() 
         #init algo config
         self.intent_config = cfg.AlgoRunner.IntentRecognition
         self._save_run = cfg.AlgoRunner.save_run
@@ -496,7 +496,7 @@ class AlgoRunner:
                 
                 
 
-            features_dic,ret = self.feature_line_extractor.extract(feature_line[0])
+            features_dic,ret_dic = self.feature_line_extractor.extract(feature_line[0])
             features_input = np.array(list(features_dic.values())).reshape(1,-1)
             features_input = self.transformer.transform(features_input)
             # predict_env = self.clf.predict(features_input)
@@ -514,7 +514,7 @@ class AlgoRunner:
             #out_data["intent"] = self.intent_recognizer(out_data)
 
             # update buffer 
-            stair_dist = ret["stair"]
+            stair_dist = ret_dic["stair"]
             out_data["feature_line"], out_data["stair_dist"] = feature_line, stair_dist
 
             algo_buffer.append(out_data)         
@@ -524,14 +524,14 @@ class AlgoRunner:
             self.vis_step(step,in_data,out_data)
             
             if self._plots_config.save_mode:
-                    self.plot_step(step,features_dic,out_data,
+                    self.plot_step(step,ret_dic,out_data,
                                 save=True,
                                 pltshow=self._plots_config.debug.online,
                                 imshow=False)
 
             else:
                 if self._plots_config.debug.online or self._plots_config.debug.offline:
-                    self.plot_step(step,in_data,out_data,
+                    self.plot_step(step,ret_dic,out_data,
                                     save=False,
                                     pltshow=self._plots_config.debug.online,
                                     imshow=self._plots_config.debug.offline)
@@ -614,42 +614,14 @@ class AlgoRunner:
         # re-drawing the figure
         cv2.imshow("rgb", in_data["depth_img"])
 
-    def plot_step(self,step,features_dic,out_data,save,pltshow,imshow):
-                
-        file_path = self._bag_obj.bag_read.datafolder+f"/plots/plot_{step}.png"
-        np_path = self._bag_obj.bag_read.datafolder+f"/plots/feature/plot_{step}.npy"
-
+    def plot_step(self,step,ret_dic,out_data,save,pltshow,imshow):
+        
+        file_path = self._bag_obj.bag_read.datafolder+f"/feature_line/plots/plot_{step}.png"
+        dline = out_data['feature_line'][0]
+        
         if save or pltshow:
-            fig, (ax1, ax2) = plt.subplots(2, 1)
-            # make a little extra space between the subplots
-            fig.subplots_adjust(hspace=0.5)
-            px_indexes = out_data["feature_line"][1][:,1]
-            depth_line = out_data["feature_line"][0][::]
-            delta = len(depth_line)/3
-            
-            ax1.plot(px_indexes,depth_line,'b')
-            #ax1.plot(out_data["stair_dist"][1],out_data["stair_dist"][0],marker="o", markersize=8, color="red")
-            ax1.plot(features_dic['depth_peaks'],depth_line[features_dic["depth_peaks"]],"x")
-            ax1.axvline(x=delta,color='b')
-            ax1.axvline(x=2*delta,color='b')
-            ax1.set_title(f"depth vs pixel index | frame: {step}")
-            ax1.set_ylim(0.3,9)
+            self.feature_line_extractor.plot_feature_line(step,dline,ret_dic,file_path=file_path,save_plots=save,pltshow=pltshow)
 
-            ax2.plot(px_indexes,features_dic['gradient'])
-            ax2.plot(features_dic['gradient_peaks'],features_dic['gradient'][features_dic['gradient_peaks']],"x")
-            ax2.axvline(x=delta,color='b')
-            ax2.axvline(x=2*delta,color='b')
-            ax2.set_title(f"depth grad vs pixel index")
-            ax2.set_ylim(-0.45,0.45)
-
-            if save:
-                np.save(np_path,np.array((depth_line)))
-                plt.savefig(file_path)
-            
-            if pltshow:
-                plt.show()
-            
-            plt.close(fig)
         
         if imshow:
             img = cv2.imread(file_path)

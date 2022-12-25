@@ -13,6 +13,9 @@ class Parser():
         parser.add_argument('-a', dest="multiple_bags_folder", type=is_bag_dir,
                             help="Use all bag files in the 'bag' dir")
         
+        parser.add_argument('-v', dest="video_name", type=is_vid_file,
+                            help="Insert video name")
+        
         return parser.parse_args()
 
 
@@ -32,6 +35,15 @@ def is_bag_dir(arg_bag_str:str):
         return arg_bag_str
     else:
         msg = f"Given bag directory {arg_bag_str} is not valid! "
+        raise argparse.ArgumentTypeError(msg)
+
+def is_vid_file(arg_vid_str: str) -> str:
+    """"""
+    # check file validation
+    if arg_vid_str.split('.')[-1]=='mp4':
+        return arg_vid_str
+    else:
+        msg = f"Given video file {arg_vid_str} is not valid! "
         raise argparse.ArgumentTypeError(msg)
 
 def main():
