@@ -24,7 +24,8 @@ dp = DepthHandler()
 ih = ImageHandler()
 
 
-class AlgoRunner:
+
+class AnalyticEnvRecognition:
 
     def __init__(self,bag_obj:BagReader,cfg:DictConfig ):
 
@@ -37,25 +38,20 @@ class AlgoRunner:
         # init bag object
         self._bag_obj = bag_obj 
         self._dfs = self._bag_obj.get_dfs()
-        self._labels = pd.read_csv(self._bag_obj.bag_read.datafolder+"/feature_line/features.csv")['labels'].to_list() 
         #init algo config
-        self.intent_config = cfg.AlgoRunner.IntentRecognition
+        self.intent_config = cfg.AlgoRunner.AnalyticEnvRecognition
         self._save_run = cfg.AlgoRunner.save_run
 
         self._vid_config = cfg.AlgoRunner.video
-        self._plots_config = cfg.AlgoRunner.plots
 
         # init detectors/estimators
         self.stair_detector = StairDetector(cfg.StairDetector)
-        self.feature_line_extractor = FeatLineExtract()
 
         # set thresholds
         self.static_thresholds = self.intent_config.static_thresholds    
         self.dynamic_thresholds = {} 
 
-        self.transformer = load('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/models/transformer.joblib')
-        self.clf = load('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/models/rbf.joblib')
-        
+
         if cfg.AlgoRunner.run_from is not None:
             self.start_step = cfg.AlgoRunner.run_from
         else:
@@ -63,7 +59,7 @@ class AlgoRunner:
 
     def __len__(self): ## need to change 
         return len(self._dfs["depth"])
-
+    
     def get_current_step(self, step:int)->dict:
         """This function insert input data into a dictionary
 
@@ -80,40 +76,34 @@ class AlgoRunner:
 
         return in_data
 
-    def crop_regions(self,img,h_grid, w_grid): ## need to change function
-
-        img_cropped = img[h_grid[1]:h_grid[2],w_grid[1]:w_grid[3]]
-
-        return img_cropped
-
     def is_SS(self,std_grid:np.ndarray,mean_grid:np.ndarray)->bool:
-        """This function determine wether intent state is SS
+            """This function determine wether intent state is SS
 
-            Args:
-                std_grid (np.ndarray): regions stds
-                mean_grid (np.ndarray): regions means
+                Args:
+                    std_grid (np.ndarray): regions stds
+                    mean_grid (np.ndarray): regions means
 
-            Returns:
-                bool: True if SS
-            """        
+                Returns:
+                    bool: True if SS
+                """        
 
-        # apply logic
-        if((std_grid[1,1]<self.static_thresholds[0])
-            and(std_grid[1,2]<self.static_thresholds[0])
-            and(std_grid[2,1]<self.static_thresholds[1])
-            and(std_grid[2,2]<self.static_thresholds[1])):
+            # apply logic
+            if((std_grid[1,1]<self.static_thresholds[0])
+                and(std_grid[1,2]<self.static_thresholds[0])
+                and(std_grid[2,1]<self.static_thresholds[1])
+                and(std_grid[2,2]<self.static_thresholds[1])):
+                
+                # update dynamic thresholds
+                sa_cof = self.intent_config.dynamic_thresholds.sa 
+                sd_cof = self.intent_config.dynamic_thresholds.sd
+
+                self.dynamic_thresholds["sa"] = [(mean_grid[0,j] +sa_cof*std_grid[0,j]) for j in range(std_grid.shape[1])]
+                self.dynamic_thresholds["sd"] = [(mean_grid[0,j] +sd_cof*std_grid[0,j]) for j in range(std_grid.shape[1])]
+
+                return True
             
-            # update dynamic thresholds
-            sa_cof = self.intent_config.dynamic_thresholds.sa 
-            sd_cof = self.intent_config.dynamic_thresholds.sd
-
-            self.dynamic_thresholds["sa"] = [(mean_grid[0,j] +sa_cof*std_grid[0,j]) for j in range(std_grid.shape[1])]
-            self.dynamic_thresholds["sd"] = [(mean_grid[0,j] +sd_cof*std_grid[0,j]) for j in range(std_grid.shape[1])]
-
-            return True
-        
-        else:
-            return False
+            else:
+                return False
 
     def is_GLW(self,mean_grid:np.ndarray,stairs_lines:list)->bool:
         """This function determine wether intent state is GLW 
@@ -179,63 +169,50 @@ class AlgoRunner:
             return False
 
     def intent_recognizer(self,out_data:dict)->int:
-        """This function determine the intent state using state machine logic
+            """This function determine the intent state using state machine logic
 
-            Args:
-                out_data (dict): output dictionary contaians the relevant features of the current step
+                Args:
+                    out_data (dict): output dictionary contaians the relevant features of the current step
 
-            Returns:
-                int: integer representing the state. 0:SS | 1:GLW | 2:SA | 3:SD | 10:Dynamic
-            """        
+                Returns:
+                    int: integer representing the state. 0:SS | 1:GLW | 2:SA | 3:SD | 10:Dynamic
+                """        
 
-        state = ""
-        # extarct features of current step
-        mean_grid, std_grid, lines = out_data["mean"], out_data["std"],out_data["lines"] 
-        
-        # apply intent recognition system acording to its logic
-        if self.is_SS(std_grid,mean_grid):
-            state = 0
-
-        else:
+            state = ""
+            # extarct features of current step
+            mean_grid, std_grid, lines = out_data["mean"], out_data["std"],out_data["lines"] 
             
-            if self.is_GLW(mean_grid,lines):
-                state = 1
-            
-            elif self.is_SA(mean_grid,lines):
-                state = 2
-            
-            elif self.is_SD(mean_grid,lines):
-                state = 3
+            # apply intent recognition system acording to its logic
+            if self.is_SS(std_grid,mean_grid):
+                state = 0
 
             else:
-                state = 10
+                
+                if self.is_GLW(mean_grid,lines):
+                    state = 1
+                
+                elif self.is_SA(mean_grid,lines):
+                    state = 2
+                
+                elif self.is_SD(mean_grid,lines):
+                    state = 3
 
-        return state
+                else:
+                    state = 10
+
+            return state
 
     def run(self):
         """This function run the main algorithem of the intention recognition system
             """
-
-        scaler = StandardScaler()
+        
         # init buffer for saving data
         algo_buffer = []
         frame_buffer = []
 
-        if self._plots_config.save_mode:
-            if not os.path.exists(self._bag_obj.bag_read.datafolder+"/plots"):
-                os.mkdir(self._bag_obj.bag_read.datafolder+"/plots")
-                if not os.path.exists(self._bag_obj.bag_read.datafolder+"/plots/feature"):
-                    os.mkdir(self._bag_obj.bag_read.datafolder+"/plots/feature")
-            else:
-                if not os.path.exists(self._bag_obj.bag_read.datafolder+"/plots/feature"):
-                    os.mkdir(self._bag_obj.bag_read.datafolder+"/plots/feature")
-        
-        # iterating the frames
-
         for step in range(self.start_step,len(self)):
             # set input/output dictionaries
             out_data = {}
-            faetures_dic = {}
             in_data = self.get_current_step(step)
 
             # copy imgs and depth data
@@ -243,79 +220,25 @@ class AlgoRunner:
             depth =  dp.mm2meter(in_data["depth"].copy()) ## change in release to be depend on config
 
             # split depth 
-            #depth_grid, h_grid, w_grid = dp.split_to_regions(depth)
+            depth_grid, h_grid, w_grid = dp.split_to_regions(depth)
 
             # extract features
-            #mean_grid = dp.get_regions_mean(depth_grid)    
-            #std_grid = dp.get_regions_std(depth_grid)
+            mean_grid = dp.get_regions_mean(depth_grid)    
+            std_grid = dp.get_regions_std(depth_grid)
 
             # detect staires lines
-            if self.stair_detector.enable:
-                lines = self.stair_detector.detect(img, depth, vis=self._vid_config.debug)
-                if len(lines)>0:
-                    #d = ss.medfilt2d(depth.copy(),3)
-                    feature_line = dp.get_feature_line(lines,depth)
-                    feature_line[0] = dp.feature_line_filter(feature_line[0])
-                    stair_dist = self.stair_detector.find_stair(feature_line[0])
-                    
-                    out_data["feature_line"], out_data["stair_dist"] = feature_line, stair_dist
+            lines = self.stair_detector.detect(img, depth, vis=self._vid_config.debug)
 
-                out_data["lines"] = lines
-            
-            else:
-                feature_line = dp.get_feature_line(depth)
-                feature_line[0] = dp.feature_line_filter(feature_line[0])
-                #stair_dist = self.stair_detector.find_stair(feature_line[0])
-                
-    #             X_test = column_transformer.transform(X_test)
-    # X_test = pd.DataFrame(data=X_test, columns=column_transformer.get_feature_names_out())
-                
-                
-
-            features_dic,ret_dic = self.feature_line_extractor.extract(feature_line[0])
-            features_input = np.array(list(features_dic.values())).reshape(1,-1)
-            features_input = self.transformer.transform(features_input)
-            # predict_env = self.clf.predict(features_input)
-            #x = pd.DataFrame(features_dic,index=[0])
-            #numerical_cols = x.columns.to_list()
-    # Create a transformer object
-            
-
-            #x = self.transformer.transform(x)
-            
-            predict_env = self.clf.predict(features_input)
-            out_data["predict_env"] = predict_env[0]
             # update output dictionary and apply intent recognition system
-            #out_data["mean"], out_data["std"] =  mean_grid, std_grid
-            #out_data["intent"] = self.intent_recognizer(out_data)
-
-            # update buffer 
-            stair_dist = ret_dic["stair"]
-            out_data["feature_line"], out_data["stair_dist"] = feature_line, stair_dist
+            out_data["lines"] = lines
+            out_data["mean"], out_data["std"] =  mean_grid, std_grid
+            out_data["intent"] = self.intent_recognizer(out_data)
 
             algo_buffer.append(out_data)         
             frame_buffer.append(in_data["depth_img"])
             
             # visualize output
             self.vis_step(step,in_data,out_data)
-            
-            if self._plots_config.save_mode:
-                    self.plot_step(step,ret_dic,out_data,
-                                save=True,
-                                pltshow=self._plots_config.debug.online,
-                                imshow=False)
-
-            else:
-                if self._plots_config.debug.online or self._plots_config.debug.offline:
-                    self.plot_step(step,ret_dic,out_data,
-                                    save=False,
-                                    pltshow=self._plots_config.debug.online,
-                                    imshow=self._plots_config.debug.offline)
-                else:
-                    pass
-            
-            
-            
 
             # 'q' key to stop
             if cv2.waitKey(1) & 0xFF == ord('q'): 
@@ -348,19 +271,187 @@ class AlgoRunner:
         Raises:
             Exception: _description_
         """                
-        
-        cv2.line(in_data["depth_img"],(0,int(in_data["depth_img"].shape[0]/3)),(int(in_data["depth_img"].shape[1]),int(in_data["depth_img"].shape[0]/3)),color=(0,255,0),thickness=1)
-        cv2.line(in_data["depth_img"],(0,int(2*in_data["depth_img"].shape[0]/3)),(int(in_data["depth_img"].shape[1]),int(2*in_data["depth_img"].shape[0]/3)),color=(0,255,0),thickness=1)
-        cv2.line(in_data["depth_img"],(int(in_data["depth_img"].shape[1]/2),0),(int(in_data["depth_img"].shape[1]/2),int(in_data["depth_img"].shape[0])),color=(255,0,0),thickness=1)
         # printing intentiokn state
-
-        #print(out_data["intent"])
-        
-        predict = out_data["predict_env"]
+        img = in_data["depth_img"].copy()
+        print(out_data["intent"])
         # plot staires lines
-        pt1 = (out_data["feature_line"][1][0][0],out_data["feature_line"][1][0][1])
-        pt2 = (out_data["feature_line"][1][-1][0],out_data["feature_line"][1][-1][1])
-        #cv2.line(in_data["depth_img"],pt1,pt2,(255,0,0),1)
+        if out_data["lines"] is not None:           
+            for line in out_data["lines"]:        
+                x1,y1,x2,y2 = line            
+                cv2.line(img,(x1,y1),(x2,y2),(0,255,0),2)
+        
+        # re-drawing the figure
+        cv2.imshow("depth", img)
+
+class SVMEnvRecognition:
+
+    def __init__(self,bag_obj:BagReader,cfg:DictConfig ):
+
+        """AlgoRunner constructor
+        Args:
+            bag_obj (BagReader): bag object
+            cfg (DictConfig): config dictionary
+        """        
+
+        # init bag object
+        self._bag_obj = bag_obj 
+        self._dfs = self._bag_obj.get_dfs()
+        self._labels = pd.read_csv(self._bag_obj.bag_read.datafolder+"/feature_line/features.csv")['labels'].to_list() 
+        #init algo config
+        self._save_run = cfg.AlgoRunner.save_run
+
+        self._vid_config = cfg.AlgoRunner.video
+        self._plots_config = cfg.AlgoRunner.plots
+
+        # init detectors/estimators
+        self.stair_detector = StairDetector(cfg.StairDetector)
+        self.feature_line_extractor = FeatLineExtract()
+
+        self.transformer = load('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/models/transformer.joblib')
+        self.clf = load('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/models/rbf.joblib')
+        
+        if cfg.AlgoRunner.run_from is not None:
+            self.start_step = cfg.AlgoRunner.run_from
+        else:
+            self.start_step = 0
+
+    def __len__(self): ## need to change 
+        return len(self._dfs["depth"])
+
+    def get_current_step(self, step:int)->dict:
+        """This function insert input data into a dictionary
+
+            Args:
+                step (int): iteration number
+
+            Returns:
+                dict: input dict
+            """        
+
+        in_data = {}
+        in_data["depth"] = np.load(self._dfs["depth"].np_path[step])
+        in_data["depth_img"] = cv2.imread(self._dfs["depth"].frame_path[step])
+
+        return in_data
+
+
+    def run(self):
+        """This function run the main algorithem of the intention recognition system
+            """
+
+        # init buffer for saving data
+        algo_buffer = []
+        frame_buffer = []
+
+        # iterating the frames
+
+        for step in range(self.start_step,len(self)):
+            # set input/output dictionaries
+            out_data = {}
+            in_data = self.get_current_step(step)
+
+            # copy imgs and depth data
+            img = in_data["depth_img"].copy()
+            depth =  dp.mm2meter(in_data["depth"].copy()) ## change in release to be depend on config
+
+            # detect staires lines
+            if self.stair_detector.enable:
+                lines = self.stair_detector.detect(img, depth, vis=self._vid_config.debug)
+                if len(lines)>0:
+                    #d = ss.medfilt2d(depth.copy(),3)
+                    feature_line = dp.get_feature_line(lines,depth)
+                    feature_line[0] = dp.feature_line_filter(feature_line[0])
+                    stair_dist = self.stair_detector.find_stair(feature_line[0])
+                    
+                    out_data["feature_line"], out_data["stair_dist"] = feature_line, stair_dist
+
+                out_data["lines"] = lines
+            
+            else:
+                feature_line = dp.get_feature_line(depth)
+                feature_line[0] = dp.feature_line_filter(feature_line[0])
+                
+            #             X_test = column_transformer.transform(X_test)
+            # X_test = pd.DataFrame(data=X_test, columns=column_transformer.get_feature_names_out())
+                
+                
+
+            features_dic,ret_dic = self.feature_line_extractor.extract(feature_line[0])
+            features_input = np.array(list(features_dic.values())).reshape(1,-1)
+            features_input = self.transformer.transform(features_input)
+            # predict_env = self.clf.predict(features_input)
+            #x = pd.DataFrame(features_dic,index=[0])
+            #numerical_cols = x.columns.to_list()
+            # Create a transformer object
+            
+
+            #x = self.transformer.transform(x)
+            
+            predict_env = self.clf.predict(features_input)
+            out_data["predict_env"] = predict_env[0]
+
+            # update buffer 
+            stair_dist = ret_dic["stair"]
+            out_data["feature_line"], out_data["stair_dist"] = feature_line, stair_dist
+
+            algo_buffer.append(out_data)         
+            frame_buffer.append(in_data["depth_img"])
+            
+            # visualize output
+            self.vis_step(step,in_data,out_data)
+            
+            if self._plots_config.save_mode:
+                    self.plot_step(step,ret_dic,out_data,
+                                save=True,
+                                pltshow=self._plots_config.debug.online,
+                                imshow=False)
+
+            else:
+                if self._plots_config.debug.online or self._plots_config.debug.offline:
+                    self.plot_step(step,ret_dic,out_data,
+                                    save=False,
+                                    pltshow=self._plots_config.debug.online,
+                                    imshow=self._plots_config.debug.offline)
+                else:
+                    pass
+
+            # 'q' key to stop
+            if cv2.waitKey(1) & 0xFF == ord('q'): 
+                    cv2.destroyAllWindows()   
+                    raise Exception()
+            else:
+                cv2.waitKey(10) 
+
+        # save output data of this run
+        if self._save_run:
+            self.save_runner(algo_buffer)
+
+        if self._vid_config.save:
+            print("[Info] Saving video..")    
+            ih.write_video(self._bag_obj.bag_read.datafolder,self._vid_config.name, frame_buffer, 10)
+            print("[Info] Video saved")
+
+    def save_runner(self,algo_buffer):
+        pass
+
+    def vis_step(self,step,in_data:dict,out_data:dict):
+        """This function visualize the output of the algorithem
+
+        Args:
+            in_data (dict): input dictionary
+            out_data (dict): output dictionary
+
+        Raises:
+            Exception: _description_
+        """                
+        
+        img = in_data["depth_img"].copy()
+        predict = out_data["predict_env"]
+
+        cv2.line(img,(0,int(img.shape[0]/3)),(int(img.shape[1]),int(img.shape[0]/3)),color=(0,255,0),thickness=1)
+        cv2.line(img,(0,int(2*img.shape[0]/3)),(int(img.shape[1]),int(2*img.shape[0]/3)),color=(0,255,0),thickness=1)
+        cv2.line(img,(int(img.shape[1]/2),0),(int(img.shape[1]/2),int(img.shape[0])),color=(255,0,0),thickness=1)
+        
         if predict == self._labels[step]:
             tcolor = (0,255,0)
         else:
@@ -371,9 +462,9 @@ class AlgoRunner:
             y0, dy = 20, 15
             for i, line in enumerate(text.split(',')):
                 y = y0 + i*dy
-                cv2.putText(in_data["depth_img"],line,org = (20, y ),fontFace=cv2.FONT_HERSHEY_SIMPLEX,fontScale=0.4,color=tcolor,thickness=1)
+                cv2.putText(img,line,org = (20, y ),fontFace=cv2.FONT_HERSHEY_SIMPLEX,fontScale=0.4,color=tcolor,thickness=1)
 
-            cv2.circle(in_data["depth_img"],out_data["feature_line"][1][out_data["stair_dist"][1]],radius=5,color=(0,0,255))
+            cv2.circle(img,out_data["feature_line"][1][out_data["stair_dist"][1]],radius=5,color=(0,0,255))
         else:
             text = f"frame: {step},env predict: {EnvLabel(predict).name},env real: {EnvLabel(self._labels[step]).name}"
             y0, dy = 20, 15
@@ -381,14 +472,15 @@ class AlgoRunner:
                 y = y0 + i*dy
                 cv2.putText(in_data["depth_img"],line,org = (20, y ),fontFace=cv2.FONT_HERSHEY_SIMPLEX,fontScale=0.4,color=tcolor,thickness=1)
 
+        # plot staires lines
         if self.stair_detector.enable:
             if out_data["lines"] is not None:           
                 for line in out_data["lines"]:        
                     x1,y1,x2,y2 = line            
-                    cv2.line(in_data["depth_img"],(x1,y1),(x2,y2),(0,255,0),2)
+                    cv2.line(img,(x1,y1),(x2,y2),(0,255,0),2)
 
         # re-drawing the figure
-        cv2.imshow("rgb", in_data["depth_img"])
+        cv2.imshow("depth", img)
 
     def plot_step(self,step,ret_dic,out_data,save,pltshow,imshow):
         
@@ -398,7 +490,6 @@ class AlgoRunner:
         if save or pltshow:
             self.feature_line_extractor.plot_feature_line(step,dline,ret_dic,file_path=file_path,save_plots=save,pltshow=pltshow)
 
-        
         if imshow:
             img = cv2.imread(file_path)
             cv2.imshow("plot",img)
@@ -410,8 +501,9 @@ class AlgoRunner:
 def main(cfg):
     bag_obj = BagReader()
     bag_obj.bag = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-12-15-24-09.bag'
-    algo_runner = AlgoRunner(bag_obj,cfg)
+    #algo_runner = SVMEnvRecognition(bag_obj,cfg)
+    algo_runner = AnalyticEnvRecognition(bag_obj,cfg)
     algo_runner.run()
 
 if __name__ == "__main__":
-    main() 
+    main()

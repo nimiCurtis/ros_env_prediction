@@ -18,9 +18,10 @@ from bag_parser import Parser
 sys.path.insert(0, '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/scripts/modules')
 from bag_reader.bag_reader import BagReader
 
-sys.path.insert(0, '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/scripts/modules/bag_processor')
-from bag_processor import DepthHandler
+sys.path.insert(0, '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/scripts/modules/modules')
+from image_data_handler.image_data_handler import DepthHandler, ImageHandler
 dp = DepthHandler()
+ih = ImageHandler()
 
 class FeatLineExtract:
 

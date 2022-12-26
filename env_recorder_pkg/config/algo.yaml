@@ -65,7 +65,7 @@ AlgoRunner:
   run_from: null
   save_run: false
 
-  IntentRecognition:
+  AnalyticEnvRecognition:
     static_thresholds:
     - 0.3
     - 2

@@ -12,13 +12,8 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
 # import from parallel modules
-# sys.path.insert(0, '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/scripts/modules/bag_parser')
-# from bag_parser.bag_parser import Parser
-
 sys.path.insert(0, '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/scripts/modules')
 from bag_reader.bag_reader import BagReader
-
-sys.path.insert(0, '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/scripts/modules/image_data_handler')
 from image_data_handler.image_data_handler import DepthHandler, ImageHandler
 dp = DepthHandler()
 ih = ImageHandler()
