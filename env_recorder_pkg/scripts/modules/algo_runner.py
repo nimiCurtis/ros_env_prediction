@@ -10,7 +10,6 @@ import scipy.signal as ss
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-from joblib import load, dump
 from sklearn.compose import make_column_transformer
 from sklearn.preprocessing import StandardScaler
 from bag_label_tool.label_tool import EnvLabel
@@ -19,7 +18,7 @@ from bag_reader.bag_reader import BagReader
 from feature_line_extractor.feature_line_extractor import FeatLineExtract
 from stair_detector.stair_detector import StairDetector
 from image_data_handler.image_data_handler import DepthHandler, ImageHandler
-
+from env_classifier.env_classifier import EnvClassifierPipe
 dp = DepthHandler()
 ih = ImageHandler()
 
@@ -306,9 +305,9 @@ class SVMEnvRecognition:
         # init detectors/estimators
         self.stair_detector = StairDetector(cfg.StairDetector)
         self.feature_line_extractor = FeatLineExtract()
-
-        self.transformer = load('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/models/transformer.joblib')
-        self.clf = load('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/models/rbf.joblib')
+        self.clf_pipline = EnvClassifierPipe()
+        self.clf_pipline.load('svm_test.joblib')
+        #self.transformer = load('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/models/transformer.joblib')
         
         if cfg.AlgoRunner.run_from is not None:
             self.start_step = cfg.AlgoRunner.run_from
@@ -333,7 +332,6 @@ class SVMEnvRecognition:
         in_data["depth_img"] = cv2.imread(self._dfs["depth"].frame_path[step])
 
         return in_data
-
 
     def run(self):
         """This function run the main algorithem of the intention recognition system
@@ -378,7 +376,7 @@ class SVMEnvRecognition:
 
             features_dic,ret_dic = self.feature_line_extractor.extract(feature_line[0])
             features_input = np.array(list(features_dic.values())).reshape(1,-1)
-            features_input = self.transformer.transform(features_input)
+            #features_input = self.transformer.transform(features_input)
             # predict_env = self.clf.predict(features_input)
             #x = pd.DataFrame(features_dic,index=[0])
             #numerical_cols = x.columns.to_list()
@@ -387,7 +385,7 @@ class SVMEnvRecognition:
 
             #x = self.transformer.transform(x)
             
-            predict_env = self.clf.predict(features_input)
+            predict_env = self.clf_pipline.predict(features_input)
             out_data["predict_env"] = predict_env[0]
 
             # update buffer 
@@ -470,7 +468,7 @@ class SVMEnvRecognition:
             y0, dy = 20, 15
             for i, line in enumerate(text.split(',')):
                 y = y0 + i*dy
-                cv2.putText(in_data["depth_img"],line,org = (20, y ),fontFace=cv2.FONT_HERSHEY_SIMPLEX,fontScale=0.4,color=tcolor,thickness=1)
+                cv2.putText(img,line,org = (20, y ),fontFace=cv2.FONT_HERSHEY_SIMPLEX,fontScale=0.4,color=tcolor,thickness=1)
 
         # plot staires lines
         if self.stair_detector.enable:
@@ -501,8 +499,8 @@ class SVMEnvRecognition:
 def main(cfg):
     bag_obj = BagReader()
     bag_obj.bag = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-12-15-24-09.bag'
-    #algo_runner = SVMEnvRecognition(bag_obj,cfg)
-    algo_runner = AnalyticEnvRecognition(bag_obj,cfg)
+    algo_runner = SVMEnvRecognition(bag_obj,cfg)
+    #algo_runner = AnalyticEnvRecognition(bag_obj,cfg)
     algo_runner.run()
 
 if __name__ == "__main__":
