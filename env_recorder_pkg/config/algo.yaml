@@ -52,13 +52,13 @@ NormalEstimation: null
 AlgoRunner:
   video:
     debug: true
-    save: false
-    name: default
+    save: true
+    name: rgb_vid1
   
   plots:
     debug:
-      online: true
-      offline: false
+      online: false
+      offline: true
     save_mode: false
     name: default
 

@@ -329,7 +329,7 @@ class SVMEnvRecognition:
 
         in_data = {}
         in_data["depth"] = np.load(self._dfs["depth"].np_path[step])
-        in_data["depth_img"] = cv2.imread(self._dfs["depth"].frame_path[step])
+        in_data["depth_img"] = cv2.imread(self._dfs["rgb"].frame_path[step])
 
         return in_data
 
@@ -361,8 +361,12 @@ class SVMEnvRecognition:
                     feature_line[0] = dp.feature_line_filter(feature_line[0])
                     stair_dist = self.stair_detector.find_stair(feature_line[0])
                     
-                    out_data["feature_line"], out_data["stair_dist"] = feature_line, stair_dist
-
+                    
+                else:
+                    feature_line = dp.get_feature_line(depth)
+                    feature_line[0] = dp.feature_line_filter(feature_line[0])
+                
+                out_data["feature_line"] = feature_line
                 out_data["lines"] = lines
             
             else:
@@ -393,10 +397,12 @@ class SVMEnvRecognition:
             out_data["feature_line"], out_data["stair_dist"] = feature_line, stair_dist
 
             algo_buffer.append(out_data)         
-            frame_buffer.append(in_data["depth_img"])
-            
-            # visualize output
-            self.vis_step(step,in_data,out_data)
+            if self._vid_config.save:
+                frame = self.vis_step(step,in_data,out_data)
+                frame_buffer.append(frame)
+            else:
+                self.vis_step(step,in_data,out_data)
+
             
             if self._plots_config.save_mode:
                     self.plot_step(step,ret_dic,out_data,
@@ -412,22 +418,24 @@ class SVMEnvRecognition:
                                     imshow=self._plots_config.debug.offline)
                 else:
                     pass
-
-            # 'q' key to stop
+            
             if cv2.waitKey(1) & 0xFF == ord('q'): 
-                    cv2.destroyAllWindows()   
-                    raise Exception()
+                cv2.destroyAllWindows()   
+                raise Exception()
             else:
-                cv2.waitKey(10) 
+                cv2.waitKey(0)
 
         # save output data of this run
         if self._save_run:
             self.save_runner(algo_buffer)
 
+        # visualize output and save video
         if self._vid_config.save:
             print("[Info] Saving video..")    
             ih.write_video(self._bag_obj.bag_read.datafolder,self._vid_config.name, frame_buffer, 10)
             print("[Info] Video saved")
+
+        
 
     def save_runner(self,algo_buffer):
         pass
@@ -443,13 +451,9 @@ class SVMEnvRecognition:
             Exception: _description_
         """                
         
-        img = in_data["depth_img"].copy()
-        predict = out_data["predict_env"]
-
-        cv2.line(img,(0,int(img.shape[0]/3)),(int(img.shape[1]),int(img.shape[0]/3)),color=(0,255,0),thickness=1)
-        cv2.line(img,(0,int(2*img.shape[0]/3)),(int(img.shape[1]),int(2*img.shape[0]/3)),color=(0,255,0),thickness=1)
-        cv2.line(img,(int(img.shape[1]/2),0),(int(img.shape[1]/2),int(img.shape[0])),color=(255,0,0),thickness=1)
+        img = self.feature_line_extractor.draw_feature_line(in_data["depth_img"])
         
+        predict = out_data["predict_env"]
         if predict == self._labels[step]:
             tcolor = (0,255,0)
         else:
@@ -479,6 +483,8 @@ class SVMEnvRecognition:
 
         # re-drawing the figure
         cv2.imshow("depth", img)
+        return img
+
 
     def plot_step(self,step,ret_dic,out_data,save,pltshow,imshow):
         
@@ -498,7 +504,7 @@ class SVMEnvRecognition:
 @hydra.main(version_base=None, config_path="../../config", config_name = "algo")
 def main(cfg):
     bag_obj = BagReader()
-    bag_obj.bag = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-12-15-24-09.bag'
+    bag_obj.bag = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-27-18-07-43.bag'
     algo_runner = SVMEnvRecognition(bag_obj,cfg)
     #algo_runner = AnalyticEnvRecognition(bag_obj,cfg)
     algo_runner.run()

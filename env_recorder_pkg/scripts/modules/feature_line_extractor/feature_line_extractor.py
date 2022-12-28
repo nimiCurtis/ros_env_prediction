@@ -12,13 +12,9 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
 # import from parallel modules
-sys.path.insert(0, '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/scripts/modules/bag_parser')
-from bag_parser import Parser
-
 sys.path.insert(0, '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/scripts/modules')
+from bag_parser.bag_parser import Parser
 from bag_reader.bag_reader import BagReader
-
-sys.path.insert(0, '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/scripts/modules/modules')
 from image_data_handler.image_data_handler import DepthHandler, ImageHandler
 dp = DepthHandler()
 ih = ImageHandler()
@@ -42,6 +38,7 @@ class FeatLineExtract:
 
         dfs = bag_obj.get_dfs()
         dfile_list = dfs['depth'].np_path.to_list()
+        img_dfile_list = dfs['depth'].frame_path.to_list()
 
         # all
         d_mean = []
@@ -107,6 +104,8 @@ class FeatLineExtract:
         bg_peaks_mean = []
         
         count = 0
+        frame_buffer = []
+
         for dfile in dfile_list:
             depth = np.load(dfile)
             depth = dp.mm2meter(depth)
@@ -114,7 +113,7 @@ class FeatLineExtract:
             if save_dline:
                 file_name = os.path.join(dline_dir,f"depth_line_{count}")
                 np.save(file_name,dline)
-            
+
             # if save_plot:
             #     # save plot
             #     pass
@@ -122,6 +121,7 @@ class FeatLineExtract:
 
             features_dic,ret_dic = self.extract(dline)
 
+        
     # append
             d_mean.append(features_dic['depth_mean'])
             d_std.append(features_dic['depth_std'])
@@ -182,7 +182,6 @@ class FeatLineExtract:
             bg_min.append(features_dic['bot_gradient_min'])
             bg_peaks_num.append(features_dic['bot_gradient_peaks_num'])
             bg_peaks_mean.append(features_dic['bot_gradient_peaks_mean'])
-            
 
 
             if save_plots:
@@ -190,9 +189,9 @@ class FeatLineExtract:
                 self.plot_feature_line(count,dline,ret_dic,file_path=file_path,save_plots=save_plots)
 
 
-
             count+=1
         
+
 
         # create data_frame
         df = pd.DataFrame({'d_mean':d_mean,
@@ -254,7 +253,6 @@ class FeatLineExtract:
                             })
 
 
-        
         df = df.round(decimals=4)
 
         if os.path.exists(feature_line_dir+"/features.csv"):
@@ -266,6 +264,14 @@ class FeatLineExtract:
         df.to_csv(feature_line_dir+"/features.csv")
         print(f"[INFO]  Feature line stats of {bag_obj.bag} saved.")
 
+        if save_dline:
+            for img in img_dfile_list:
+                depth_img = cv2.imread(img)    
+                depth_img = self.draw_feature_line(depth_img)
+                frame_buffer.append(depth_img)
+            
+            ih.write_video(bag_dir,"feature_line",frame_buffer,fps=10)
+        
     def extract(self,depth):
         delta = int(len(depth)/3)
         depth_up = depth[:delta].copy()
@@ -471,14 +477,21 @@ class FeatLineExtract:
 
         plt.close(fig)
 
+    def draw_feature_line(self,depth):
+        
+        img = depth.copy()
+        cv2.line(img,(0,int(img.shape[0]/3)),(int(img.shape[1]),int(img.shape[0]/3)),color=(0,255,0),thickness=1)
+        cv2.line(img,(0,int(2*img.shape[0]/3)),(int(img.shape[1]),int(2*img.shape[0]/3)),color=(0,255,0),thickness=1)
+        cv2.line(img,(int(img.shape[1]/2),0),(int(img.shape[1]/2),int(img.shape[0])),color=(255,0,0),thickness=1)
 
+        return img
 
 def main():
     bag_obj = BagReader()
     extractor = FeatLineExtract()
     args = Parser.get_args()
     # default
-    bag_file = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-12-15-23-00.bag' 
+    bag_file = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-27-18-06-43.bag' 
 
     if args.multiple_bags_folder is not None:
 
@@ -493,7 +506,7 @@ def main():
             bag_file = args.single_bag
         
         bag_obj.bag = bag_file
-        extractor.extract_stats_from_bag(bag_obj,save_dline=True,save_plots=False)
+        extractor.extract_stats_from_bag(bag_obj,save_dline=True,save_plots=True)
 
 if __name__ == '__main__':
     main()

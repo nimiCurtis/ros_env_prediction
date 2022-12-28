@@ -4,11 +4,8 @@ import pandas as pd
 from enum import Enum
 import cv2
 
-# import from parallel modules
-sys.path.insert(0, '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/scripts/modules/bag_parser')
-from bag_parser import Parser
-
 sys.path.insert(0, '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/scripts/modules')
+from bag_parser.bag_parser import Parser
 from bag_reader.bag_reader import BagReader
 
 class EnvLabel(Enum):

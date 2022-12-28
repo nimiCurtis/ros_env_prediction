@@ -19,11 +19,9 @@ from cv_bridge import CvBridge, CvBridgeError
 
 import matplotlib.pyplot as plt
 
-
-
 # import from parallel modules
 sys.path.insert(0, '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/scripts/modules')
-from bag_parser import Parser
+from bag_parser.bag_parser import Parser
 from image_data_handler.image_data_handler import DepthHandler, ImageHandler
 dp = DepthHandler()
 ih = ImageHandler()
@@ -322,7 +320,7 @@ def export_bag(bag_obj):
 def main():
     bag_obj = BagReader()
     args = Parser.get_args()
-    bag_file = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-11-08-10-07-30.bag' # default
+    bag_file = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-27-18-07-43.bag' # default
 
     if args.multiple_bags_folder is not None:
         for filename in os.scandir(args.multiple_bags_folder): 

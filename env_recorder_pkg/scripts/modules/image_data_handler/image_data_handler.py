@@ -258,8 +258,13 @@ class ImageHandler():
         now = datetime.now().strftime("%H-%M-%S")
         file_path = folder_path+f"/video/{now}_"+file_name+".mp4"
         
-        # use opencv videowriter 
-        h, w, _ = frames[0].shape # unpack h,w dimensions from the first frame assuming frames dimensions are equall
+        # use opencv videowriter
+        shape =  frames[0].shape
+        if len(shape) == 3:
+            h, w, _ = shape # unpack h,w dimensions from the first frame assuming frames dimensions are equall
+        elif len(shape)==2:
+            h, w = shape
+        
         fourcc = cv2.VideoWriter_fourcc(*"mp4v")
         writer = cv2.VideoWriter(file_path, fourcc, fps, (w,h))
         cv2.VideoWriter()
