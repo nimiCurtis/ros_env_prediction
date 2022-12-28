@@ -504,7 +504,7 @@ class SVMEnvRecognition:
 @hydra.main(version_base=None, config_path="../../config", config_name = "algo")
 def main(cfg):
     bag_obj = BagReader()
-    bag_obj.bag = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-27-18-07-43.bag'
+    bag_obj.bag = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-12-15-24-09.bag'
     algo_runner = SVMEnvRecognition(bag_obj,cfg)
     #algo_runner = AnalyticEnvRecognition(bag_obj,cfg)
     algo_runner.run()

@@ -53,7 +53,7 @@ AlgoRunner:
   video:
     debug: true
     save: true
-    name: rgb_vid1
+    name: rgb_vid
   
   plots:
     debug:
