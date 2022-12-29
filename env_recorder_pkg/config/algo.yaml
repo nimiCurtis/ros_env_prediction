@@ -52,7 +52,7 @@ NormalEstimation: null
 AlgoRunner:
   video:
     debug: true
-    save: true
+    save: false
     name: rgb_vid
   
   plots:

@@ -1,8 +1,6 @@
 # imports
 import os
 import sys
-from omegaconf import DictConfig
-from datetime import datetime
 from typing import Union
 import cv2
 import numpy as np

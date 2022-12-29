@@ -2,7 +2,6 @@
 import os
 import hydra
 from omegaconf import DictConfig
-from datetime import datetime
 from typing import Union
 import cv2
 import numpy as np
@@ -306,7 +305,7 @@ class SVMEnvRecognition:
         self.stair_detector = StairDetector(cfg.StairDetector)
         self.feature_line_extractor = FeatLineExtract()
         self.clf_pipline = EnvClassifierPipe()
-        self.clf_pipline.load('svm_test.joblib')
+        self.clf_pipline.load('best_29-12-2022_20-10-56.joblib')
         #self.transformer = load('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/models/transformer.joblib')
         
         if cfg.AlgoRunner.run_from is not None:
