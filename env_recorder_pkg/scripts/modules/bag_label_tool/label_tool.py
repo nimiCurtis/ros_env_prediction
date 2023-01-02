@@ -3,6 +3,7 @@ import sys
 import pandas as pd
 from enum import Enum
 import cv2
+import numpy as np
 
 sys.path.insert(0, '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/scripts/modules')
 from bag_parser.bag_parser import Parser
@@ -83,11 +84,26 @@ class LabelTool:
                 label = int(input(f"Insert label for frames {start} - {stop} : "))
                 self.set_frames_label(labels_dict,start,stop,label)
                 
+            elif k==ord('m'):
+                
+                start = int(input("Insert index of starting frame : "))
+                stop = int(input("Insert index of ending frame : "))
+                while (not self.isvalid_frame(start,frame_count)) or (not self.isvalid_frame(stop,frame_count)) or (start>=stop):
+                    start = int(input("Insert index of starting frame : "))
+                    stop = int(input("Insert index of ending frame : "))
+                
+                label_list = [int(input("Insert top label: ")),int(input("Insert mid label: ")),int(input("Insert bottom label: "))]
+                self.set_frames_label(labels_dict,start,stop,label_list)
 
 
             keys = labels_dict.keys()
             if f"frame{frame_i}" in keys:
-                text = f"frame : {frame_i} | label: {EnvLabel(labels_dict[f'frame{frame_i}']).name}"
+                label = labels_dict[f'frame{frame_i}']
+                if isinstance(label,list):
+                    text = f"frame : {frame_i} | label: [{EnvLabel(label[0]).name},{EnvLabel(label[1]).name},{EnvLabel(label[2]).name}]"
+                elif isinstance(label,list):
+                    text = f"frame : {frame_i} | label: {EnvLabel(label).name}"
+
             else:
                 text = f"frame : {frame_i}"
 
@@ -99,8 +115,17 @@ class LabelTool:
 
         if len(labels_dict)==frame_count:
             labels_list = self.return_labels_as_list(labels_dict)
-            df = pd.read_csv(dataset_file,index_col=0)
-            df['labels'] = labels_list
+            if len(labels_list[0])==1: ### need to change in refactoring
+                df = pd.read_csv(dataset_file,index_col=0)
+                df['labels'] = labels_list
+            elif len(labels_list[0])==3: ### need to change in refactoring
+                labels_numpy = np.array(labels_list)
+                
+                df = pd.read_csv(dataset_file,index_col=0)
+                df['top_labels'] = labels_numpy[:,0].tolist()
+                df['mid_labels'] = labels_numpy[:,1].tolist()
+                df['bot_labels'] = labels_numpy[:,2].tolist()
+
             df.to_csv(dataset_file)
             print("[Info]  Labels saved")
         else:
@@ -122,6 +147,12 @@ class LabelTool:
             labels_dict[f"frame{i}"] = label
         pass
 
+    def set_frame_labels(self,frame_i):
+        print(f"Insert labels of frame {frame_i}. In the form of - [top,mid,bot] ")
+        label_list = [int(input("Insert top label: ")),int(input("Insert mid label: ")),int(input("Insert bottom label: "))]
+        
+        return label_list
+
     def return_labels_as_list(self,labels_dict):
         labels_list  = [v for k, v in labels_dict.items()]
 
@@ -133,7 +164,7 @@ def main():
     label_tool = LabelTool()
     args = Parser.get_args()
     # default
-    bag_file = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-12-15-23-00.bag' 
+    bag_file = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-27-18-06-43.bag' 
 
     if args.single_bag is not None: bag_file = args.single_bag
     bag_obj.bag = bag_file

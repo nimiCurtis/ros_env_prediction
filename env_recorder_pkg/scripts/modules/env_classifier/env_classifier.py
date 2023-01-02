@@ -15,6 +15,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
+from sklearn.multioutput import MultiOutputClassifier
 from typing import Any
 
 DATA_FOLDER = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/models/train'
@@ -85,22 +86,29 @@ def prepare_data_to_train(data_folder,random_state = 100,test_size=0.2):
             file_name = filename.path
             df_tmp = pd.read_csv(file_name,index_col=0)
             df = df.append(df_tmp)
-
-    X = df.drop(['labels'],axis=1)
-    y = df['labels']
-
+    
+    if 'labels' in df.columns:
+        X = df.drop(['labels'],axis=1)
+        y = df['labels']
+    else:
+        X = df.drop(['top_labels','mid_labels','bot_labels'],axis=1)
+        y = df[['top_labels','mid_labels','bot_labels']]
+        
     X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=random_state,test_size=test_size)
 
     return X_train, X_test, y_train, y_test
 
 def run_train_test():
-    pipe = EnvClassifierPipe()
-    X_train, X_test, y_train, y_test = pipe.prepare_data_to_train(data_folder=DATA_FOLDER)
-    pipe.train(X_train,y_train)
-    pipe.test(X_test,y_test)
+    
+    X_train, X_test, y_train, y_test = prepare_data_to_train(data_folder='/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/models/test_multi_train')
+    mrf = MultiOutputClassifier(RandomForestClassifier()) 
+    rf_pipe = Pipeline([('scaler', StandardScaler()), ('model',mrf )])
+    rf_env_pipe = EnvClassifierPipe({'clf_pipeline':rf_pipe})
+    rf_env_pipe.train(X_train,y_train)
+    rf_env_pipe.test(X_test,y_test)
     name = input("Press enter = finish without saving pipe | File name = finish with saving pipe \nEnter your input: ")
     if name != "":
-        pipe.save(name)
+        rf_env_pipe.save(name)
 
 def run_models_comparison(save=False):
     now = datetime.now()
@@ -173,8 +181,8 @@ def run_models_comparison(save=False):
     
 
 def main():
-    #run_train_test('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/models/train')
-    run_models_comparison(save=True)
+    run_train_test()
+    #run_models_comparison(save=True)
     
 
 if __name__ == "__main__":

@@ -295,7 +295,7 @@ class SVMEnvRecognition:
         self._bag_obj = bag_obj 
         self._dfs = self._bag_obj.get_dfs()
         self._labels = pd.read_csv(self._bag_obj.bag_read.datafolder+"/feature_line/features.csv")['labels'].to_list() 
-        #init algo config
+        #self._labels = pd.read_csv(self._bag_obj.bag_read.datafolder+"/feature_line/features.csv")[['top_labels','mid_labels','bot_labels']].to_list() 
         self._save_run = cfg.AlgoRunner.save_run
 
         self._vid_config = cfg.AlgoRunner.video
@@ -305,7 +305,7 @@ class SVMEnvRecognition:
         self.stair_detector = StairDetector(cfg.StairDetector)
         self.feature_line_extractor = FeatLineExtract()
         self.clf_pipline = EnvClassifierPipe()
-        self.clf_pipline.load('best_29-12-2022_20-10-56.joblib')
+        self.clf_pipline.load('multi_test.joblib')
         #self.transformer = load('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/models/transformer.joblib')
         
         if cfg.AlgoRunner.run_from is not None:
@@ -377,7 +377,7 @@ class SVMEnvRecognition:
                 
                 
 
-            features_dic,ret_dic = self.feature_line_extractor.extract(feature_line[0])
+            features_dic,ret_dic = self.feature_line_extractor.extract(feature_line[0],multi_labels=True)
             features_input = np.array(list(features_dic.values())).reshape(1,-1)
             #features_input = self.transformer.transform(features_input)
             # predict_env = self.clf.predict(features_input)
@@ -453,25 +453,32 @@ class SVMEnvRecognition:
         img = self.feature_line_extractor.draw_feature_line(in_data["depth_img"])
         
         predict = out_data["predict_env"]
-        if predict == self._labels[step]:
-            tcolor = (0,255,0)
-        else:
-            tcolor = (0,0,255)
+        label = self._labels[step]
+        
+        text = f"frame: {step},env predict: [{EnvLabel(predict[0]).name};{EnvLabel(predict[1]).name};{EnvLabel(predict[2]).name}]"
+        y0, dy = 20, 15
+        for i, line in enumerate(text.split(',')):
+            y = y0 + i*dy
+            cv2.putText(img,line,org = (20, y ),fontFace=cv2.FONT_HERSHEY_SIMPLEX,fontScale=0.4,color=(255,0,0),thickness=1)
+        # if predict == label:
+        #     tcolor = (0,255,0)
+        # else:qqq
+        #     tcolor = (0,0,255)
 
-        if predict!=1 and out_data['stair_dist'] is not None:
-            text = f"Distance to POI: {out_data['stair_dist'][0]:.3f}[meters],frame: {step},env predict: {EnvLabel(predict).name},env real: {EnvLabel(self._labels[step]).name}"
-            y0, dy = 20, 15
-            for i, line in enumerate(text.split(',')):
-                y = y0 + i*dy
-                cv2.putText(img,line,org = (20, y ),fontFace=cv2.FONT_HERSHEY_SIMPLEX,fontScale=0.4,color=tcolor,thickness=1)
+        # if predict!=1 and out_data['stair_dist'] is not None:
+        #     text = f"Distance to POI: {out_data['stair_dist'][0]:.3f}[meters],frame: {step},env predict: {EnvLabel(predict).name},env real: {EnvLabel(self._labels[step]).name}"
+        #     y0, dy = 20, 15
+        #     for i, line in enumerate(text.split(',')):
+        #         y = y0 + i*dy
+        #         cv2.putText(img,line,org = (20, y ),fontFace=cv2.FONT_HERSHEY_SIMPLEX,fontScale=0.4,color=tcolor,thickness=1)
 
-            cv2.circle(img,out_data["feature_line"][1][out_data["stair_dist"][1]],radius=5,color=(0,0,255))
-        else:
-            text = f"frame: {step},env predict: {EnvLabel(predict).name},env real: {EnvLabel(self._labels[step]).name}"
-            y0, dy = 20, 15
-            for i, line in enumerate(text.split(',')):
-                y = y0 + i*dy
-                cv2.putText(img,line,org = (20, y ),fontFace=cv2.FONT_HERSHEY_SIMPLEX,fontScale=0.4,color=tcolor,thickness=1)
+        #     cv2.circle(img,out_data["feature_line"][1][out_data["stair_dist"][1]],radius=5,color=(0,0,255))
+        # else:
+        #     text = f"frame: {step},env predict: {EnvLabel(predict).name},env real: {EnvLabel(self._labels[step]).name}"
+        #     y0, dy = 20, 15
+        #     for i, line in enumerate(text.split(',')):
+        #         y = y0 + i*dy
+        #         cv2.putText(img,line,org = (20, y ),fontFace=cv2.FONT_HERSHEY_SIMPLEX,fontScale=0.4,color=tcolor,thickness=1)
 
         # plot staires lines
         if self.stair_detector.enable:
@@ -503,7 +510,7 @@ class SVMEnvRecognition:
 @hydra.main(version_base=None, config_path="../../config", config_name = "algo")
 def main(cfg):
     bag_obj = BagReader()
-    bag_obj.bag = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-12-15-24-09.bag'
+    bag_obj.bag = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-27-18-07-14.bag'
     algo_runner = SVMEnvRecognition(bag_obj,cfg)
     #algo_runner = AnalyticEnvRecognition(bag_obj,cfg)
     algo_runner.run()
