@@ -1,4 +1,6 @@
 import os
+import sys
+import argparse
 from datetime import datetime
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -18,7 +20,11 @@ from sklearn.metrics import classification_report, confusion_matrix, ConfusionMa
 from sklearn.multioutput import MultiOutputClassifier
 from typing import Any
 
-DATA_FOLDER = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/models/train'
+sys.path.insert(0, '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/scripts/modules')
+from bag_parser.bag_parser import Parser, is_bag_dir, is_bag_file
+
+TRAIN_DATA_FOLDER = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/models/train'
+TEST_DATA_FOLDER = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/models/test'
 
 class EnvClassifierPipe:
 
@@ -76,7 +82,7 @@ class EnvClassifierPipe:
         
 
 
-
+## need to change prepare data to train
 def prepare_data_to_train(data_folder,random_state = 100,test_size=0.2):
     df = pd.DataFrame()
 
@@ -110,44 +116,23 @@ def run_train_test():
     if name != "":
         rf_env_pipe.save(name)
 
-def run_models_comparison(save=False):
+def run_models_comparison(train_folder,test_folder, multilabel, save=False):
     now = datetime.now()
-    X_train, X_test, y_train, y_test = prepare_data_to_train(data_folder = DATA_FOLDER)
+    X_train, X_test, y_train, y_test = prepare_data_to_train(data_folder = train_folder)
+    svm_model = SVC()
+    if multilabel:
+        knn_model = MultiOutputClassifier(KNeighborsClassifier())
+        rf_model = MultiOutputClassifier(RandomForestClassifier())
+    else:
+        knn_model = KNeighborsClassifier()
+        rf_model = RandomForestClassifier()
     
-    svm_pipe = Pipeline([('scaler', StandardScaler()),('model', SVC())])
-    knn_pipe = Pipeline([('scaler', StandardScaler()),('model',KNeighborsClassifier())])
-    rf_pipe = Pipeline([('scaler', StandardScaler()), ('model', RandomForestClassifier())])
-    
-    svm_env_pipe = EnvClassifierPipe({'clf_pipeline':svm_pipe})
+    knn_pipe = Pipeline([('scaler', StandardScaler()),('model',knn_model)])
     knn_env_pipe = EnvClassifierPipe({'clf_pipeline':knn_pipe})
-    rf_env_pipe = EnvClassifierPipe({'clf_pipeline':rf_pipe})
-
-    svm_param_grid = {'model__C': [0.1, 1, 10, 100],
-                    'model__gamma': [1, 0.1, 0.01, 0.001],
-                    'model__kernel': ['rbf']}
     knn_param_grid = {'model__n_neighbors': [3, 5, 7, 9, 11]}
-    rf_param_grid = {'model__n_estimators': [10, 50, 100, 200],'model__max_depth': [None, 5, 10, 15]}
-
-    svm_env_pipe.set_grid_search(pipe_params=svm_param_grid,verbose=1)
     knn_env_pipe.set_grid_search(pipe_params=knn_param_grid,verbose=1)
-    rf_env_pipe.set_grid_search(pipe_params=rf_param_grid,verbose=1)
-
-
-    svm_env_pipe.pipe_grid.fit(X_train, y_train)
     knn_env_pipe.pipe_grid.fit(X_train, y_train)
-    rf_env_pipe.pipe_grid.fit(X_train, y_train)
-
-    svm_predictions = svm_env_pipe.pipe_grid.predict(X_test)
-    #print(svm_env_pipe.pipe_grid.best_estimator_.score(X_test,y_test))
     knn_predictions = knn_env_pipe.pipe_grid.predict(X_test)
-    rf_predictions = rf_env_pipe.pipe_grid.predict(X_test)
-
-    print(f"SVM best model score: {svm_env_pipe.pipe_grid.best_score_}")
-    print(f"SVM best model score on the test set: {svm_env_pipe.pipe_grid.best_estimator_.score(X_test,y_test)}")
-    print(f"SVM best model params: {svm_env_pipe.pipe_grid.best_params_}")
-    print("SVM Classification Report:")
-    print(classification_report(y_test, svm_predictions))
-    
     
     print(f"KNN best model score: {knn_env_pipe.pipe_grid.best_score_}")
     print(f"KNN best model score on the test set: {knn_env_pipe.pipe_grid.best_estimator_.score(X_test,y_test)}")
@@ -155,14 +140,43 @@ def run_models_comparison(save=False):
     print("KNN Classification Report:")
     print(classification_report(y_test, knn_predictions))
     
+    rf_pipe = Pipeline([('scaler', StandardScaler()), ('model', rf_model)])
+    rf_env_pipe = EnvClassifierPipe({'clf_pipeline':rf_pipe})
+    rf_param_grid = {'model__n_estimators': [10, 50, 100, 200],'model__max_depth': [None, 5, 10, 15]}
+    rf_env_pipe.set_grid_search(pipe_params=rf_param_grid,verbose=1)
+    rf_env_pipe.pipe_grid.fit(X_train, y_train)
+    rf_predictions = rf_env_pipe.pipe_grid.predict(X_test)
+
     print(f"RF best model score: {rf_env_pipe.pipe_grid.best_score_}")
     print(f"RF best model score on the test set: {rf_env_pipe.pipe_grid.best_estimator_.score(X_test,y_test)}")
     print(f"RF best model params: {rf_env_pipe.pipe_grid.best_params_}")
     print("RF Classification Report:")
     print(classification_report(y_test, rf_predictions))
 
-    scores = {'SVM':svm_env_pipe.pipe_grid.best_score_,'KNN':knn_env_pipe.pipe_grid.best_score_,'RF':rf_env_pipe.pipe_grid.best_score_}
-    pipes = {'SVM':svm_env_pipe,'KNN':knn_env_pipe,'RF':rf_env_pipe}
+    if not(multilabel):
+
+        svm_pipe = Pipeline([('scaler', StandardScaler()),('model', svm_model)])
+        svm_env_pipe = EnvClassifierPipe({'clf_pipeline':svm_pipe})
+        svm_param_grid = {'model__C': [0.1, 1, 10, 100],
+                        'model__gamma': [1, 0.1, 0.01, 0.001],
+                        'model__kernel': ['rbf']}
+        svm_env_pipe.set_grid_search(pipe_params=svm_param_grid,verbose=1)
+        svm_env_pipe.pipe_grid.fit(X_train, y_train)
+        svm_predictions = svm_env_pipe.pipe_grid.predict(X_test)
+
+        print(f"SVM best model score: {svm_env_pipe.pipe_grid.best_score_}")
+        print(f"SVM best model score on the test set: {svm_env_pipe.pipe_grid.best_estimator_.score(X_test,y_test)}")
+        print(f"SVM best model params: {svm_env_pipe.pipe_grid.best_params_}")
+        print("SVM Classification Report:")
+        print(classification_report(y_test, svm_predictions))
+
+        scores = {'SVM':svm_env_pipe.pipe_grid.best_score_,'KNN':knn_env_pipe.pipe_grid.best_score_,'RF':rf_env_pipe.pipe_grid.best_score_}
+        pipes = {'SVM':svm_env_pipe,'KNN':knn_env_pipe,'RF':rf_env_pipe}
+    
+    else:
+        scores = {'KNN':knn_env_pipe.pipe_grid.best_score_,'RF':rf_env_pipe.pipe_grid.best_score_}
+        pipes = {'KNN':knn_env_pipe,'RF':rf_env_pipe}
+
     best_score = max(scores.values())
     best_pipe_key = max(scores, key=scores.get)
     best_pipe = pipes[best_pipe_key]
@@ -176,14 +190,44 @@ def run_models_comparison(save=False):
     plt.show()
     
     if save:
-        name = "best_"+now.strftime("%d-%m-%Y_%H-%M-%S")
-        best_pipe.save(name)
+        if multilabel:
+            name = "multi_best_"+now.strftime("%d-%m-%Y_%H-%M-%S")
+            best_pipe.save(name)
+        else:
+            name = "best_"+now.strftime("%d-%m-%Y_%H-%M-%S")
+            best_pipe.save(name)
     
 
+class CalssifierParser(Parser):
+    def __init__(self) -> None:
+        super().__init__()
+
+    @staticmethod
+    def get_args():
+        parser = argparse.ArgumentParser(description ='Bag Iterator')
+
+        parser.add_argument('--cs',action='store_true', help="Compare ML models tests for single label")
+        parser.add_argument('--cm',action='store_true', help="Compare ML models tests for multi label")
+
+        return parser.parse_args()
+
+
 def main():
-    run_train_test()
-    #run_models_comparison(save=True)
     
+    args = CalssifierParser.get_args()
+    if args.cs:
+        train_folder = os.path.join(TRAIN_DATA_FOLDER,'train')
+        test_folder = os.path.join(TEST_DATA_FOLDER,'test')
+        run_models_comparison(train_folder,test_folder,multilabel=False,save=True)
+
+    elif args.cm:
+        train_folder = os.path.join(TRAIN_DATA_FOLDER,'train_multi')
+        test_folder = os.path.join(TEST_DATA_FOLDER,'test_multi')
+        run_models_comparison(train_folder,test_folder,multilabel=True,save=True)
+    
+    else:
+        run_train_test()
+
 
 if __name__ == "__main__":
     main()
