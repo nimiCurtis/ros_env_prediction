@@ -161,8 +161,8 @@ class MultiLabelTool(LabelTool):
         if video_name is not None: video_file = os.path.join(video_folder,video_name)
         else: video_file = os.path.join(video_folder,os.listdir(video_folder)[0])
         
-        dataset_file = bag_obj.bag_read.datafolder+'/feature_line/multi_features.csv'
-
+        multi_dataset_file = bag_obj.bag_read.datafolder+'/feature_line/multi_features.csv'
+        single_dataset_file = bag_obj.bag_read.datafolder+'/feature_line/features.csv'
         capture = cv2.VideoCapture(video_file)
         frame_count = int(capture.get(cv2.CAP_PROP_FRAME_COUNT))
         print('[INFO]  Frame count:', frame_count)
@@ -237,13 +237,18 @@ class MultiLabelTool(LabelTool):
             labels_list = self.return_labels_as_list(labels_dict)
             labels_numpy = np.array(labels_list)
             
-            df = pd.read_csv(dataset_file,index_col=0)
-            df['top_labels'] = labels_numpy[:,0].tolist()
-            df['mid_labels'] = labels_numpy[:,1].tolist()
-            df['bot_labels'] = labels_numpy[:,2].tolist()
+            df_m = pd.read_csv(multi_dataset_file,index_col=0) 
+            df_m['top_labels'] = labels_numpy[:,0].tolist()
+            df_m['mid_labels'] = labels_numpy[:,1].tolist()
+            df_m['bot_labels'] = labels_numpy[:,2].tolist()
+            df_m.to_csv(multi_dataset_file)
+            print("[Info]  MultiLabels saved")
 
-            df.to_csv(dataset_file)
-            print("[Info]  Labels saved")
+            df_s = pd.read_csv(single_dataset_file,index_col=0) 
+            df_s['labels'] = labels_numpy.reshape(1,-1)
+            df_s.to_csv(single_dataset_file)
+            print("[Info]  SingleLabels saved")
+
         else:
             print("[Info]  Exiting without saving labels")
 

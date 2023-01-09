@@ -16,7 +16,7 @@ from joblib import dump, load
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
+from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay, multilabel_confusion_matrix,_classification
 from sklearn.multioutput import MultiOutputClassifier
 from typing import Any
 
@@ -122,14 +122,19 @@ def run_models_comparison(train_folder,test_folder, multilabel, save=False):
     svm_model = SVC()
     if multilabel:
         knn_model = MultiOutputClassifier(KNeighborsClassifier())
+        knn_param_grid = {'model__estimator__n_neighbors': [3, 5, 7, 9, 11]}
         rf_model = MultiOutputClassifier(RandomForestClassifier())
+        rf_param_grid = {'model__estimator__n_estimators': [10, 50, 100, 200],'model__estimator__max_depth': [None, 5, 10, 15]}
+
+
     else:
         knn_model = KNeighborsClassifier()
+        knn_param_grid = {'model__n_neighbors': [3, 5, 7, 9, 11]}
         rf_model = RandomForestClassifier()
+        rf_param_grid = {'model__n_estimators': [10, 50, 100, 200],'model__max_depth': [None, 5, 10, 15]}
     
     knn_pipe = Pipeline([('scaler', StandardScaler()),('model',knn_model)])
     knn_env_pipe = EnvClassifierPipe({'clf_pipeline':knn_pipe})
-    knn_param_grid = {'model__n_neighbors': [3, 5, 7, 9, 11]}
     knn_env_pipe.set_grid_search(pipe_params=knn_param_grid,verbose=1)
     knn_env_pipe.pipe_grid.fit(X_train, y_train)
     knn_predictions = knn_env_pipe.pipe_grid.predict(X_test)
@@ -137,12 +142,10 @@ def run_models_comparison(train_folder,test_folder, multilabel, save=False):
     print(f"KNN best model score: {knn_env_pipe.pipe_grid.best_score_}")
     print(f"KNN best model score on the test set: {knn_env_pipe.pipe_grid.best_estimator_.score(X_test,y_test)}")
     print(f"KNN best model params: {knn_env_pipe.pipe_grid.best_params_}")
-    print("KNN Classification Report:")
-    print(classification_report(y_test, knn_predictions))
+    
     
     rf_pipe = Pipeline([('scaler', StandardScaler()), ('model', rf_model)])
     rf_env_pipe = EnvClassifierPipe({'clf_pipeline':rf_pipe})
-    rf_param_grid = {'model__n_estimators': [10, 50, 100, 200],'model__max_depth': [None, 5, 10, 15]}
     rf_env_pipe.set_grid_search(pipe_params=rf_param_grid,verbose=1)
     rf_env_pipe.pipe_grid.fit(X_train, y_train)
     rf_predictions = rf_env_pipe.pipe_grid.predict(X_test)
@@ -150,8 +153,7 @@ def run_models_comparison(train_folder,test_folder, multilabel, save=False):
     print(f"RF best model score: {rf_env_pipe.pipe_grid.best_score_}")
     print(f"RF best model score on the test set: {rf_env_pipe.pipe_grid.best_estimator_.score(X_test,y_test)}")
     print(f"RF best model params: {rf_env_pipe.pipe_grid.best_params_}")
-    print("RF Classification Report:")
-    print(classification_report(y_test, rf_predictions))
+    
 
     if not(multilabel):
 
@@ -167,6 +169,11 @@ def run_models_comparison(train_folder,test_folder, multilabel, save=False):
         print(f"SVM best model score: {svm_env_pipe.pipe_grid.best_score_}")
         print(f"SVM best model score on the test set: {svm_env_pipe.pipe_grid.best_estimator_.score(X_test,y_test)}")
         print(f"SVM best model params: {svm_env_pipe.pipe_grid.best_params_}")
+        print("Reports.....")
+        print("KNN Classification Report:")
+        print(classification_report(y_test, knn_predictions))
+        print("RF Classification Report:")
+        print(classification_report(y_test, rf_predictions))
         print("SVM Classification Report:")
         print(classification_report(y_test, svm_predictions))
 
@@ -174,20 +181,23 @@ def run_models_comparison(train_folder,test_folder, multilabel, save=False):
         pipes = {'SVM':svm_env_pipe,'KNN':knn_env_pipe,'RF':rf_env_pipe}
     
     else:
+
         scores = {'KNN':knn_env_pipe.pipe_grid.best_score_,'RF':rf_env_pipe.pipe_grid.best_score_}
         pipes = {'KNN':knn_env_pipe,'RF':rf_env_pipe}
+        
 
     best_score = max(scores.values())
     best_pipe_key = max(scores, key=scores.get)
     best_pipe = pipes[best_pipe_key]
     best_pipe.pipe = best_pipe.pipe_grid.best_estimator_
     
-    best_cm = confusion_matrix(y_test, svm_predictions, labels= best_pipe.pipe_grid.best_estimator_.classes_)
-    disp = ConfusionMatrixDisplay(confusion_matrix=best_cm,display_labels=best_pipe.pipe_grid.best_estimator_.classes_)
-    disp.plot()
-    plt.suptitle("Confusion Matrix Of Best Pipe")
-    plt.title(f"Best - {best_pipe_key} Pipe")
-    plt.show()
+    if not(multilabel):
+        best_cm = confusion_matrix(y_test,best_pipe.pipe_grid.predict(X_test),labels= best_pipe.pipe_grid.best_estimator_.classes_)
+        disp = ConfusionMatrixDisplay(confusion_matrix=best_cm,display_labels=best_pipe.pipe_grid.best_estimator_.classes_)
+        disp.plot()
+        plt.suptitle("Confusion Matrix Of Best Pipe")
+        plt.title(f"Best - {best_pipe_key} Pipe")
+        plt.show()
     
     if save:
         if multilabel:
@@ -196,7 +206,7 @@ def run_models_comparison(train_folder,test_folder, multilabel, save=False):
         else:
             name = "best_"+now.strftime("%d-%m-%Y_%H-%M-%S")
             best_pipe.save(name)
-    
+
 
 class CalssifierParser(Parser):
     def __init__(self) -> None:
@@ -220,6 +230,7 @@ def main():
         test_folder = os.path.join(TEST_DATA_FOLDER,'test')
         run_models_comparison(train_folder,test_folder,multilabel=False,save=True)
 
+    
     elif args.cm:
         train_folder = os.path.join(TRAIN_DATA_FOLDER,'train_multi')
         test_folder = os.path.join(TEST_DATA_FOLDER,'test_multi')

@@ -11,10 +11,12 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from sklearn.compose import make_column_transformer
 from sklearn.preprocessing import StandardScaler
+from sklearn.multioutput import MultiOutputClassifier
+
 from bag_label_tool.label_tool import EnvLabel
 # import bag reader and processor modules
 from bag_reader.bag_reader import BagReader
-from feature_line_extractor.feature_line_extractor import FeatLineExtract
+from feature_line_extractor.feature_line_extractor import FeatLineExtract, MultiFeatLineExtract
 from stair_detector.stair_detector import StairDetector
 from image_data_handler.image_data_handler import DepthHandler, ImageHandler
 from env_classifier.env_classifier import EnvClassifierPipe
@@ -281,7 +283,7 @@ class AnalyticEnvRecognition:
         # re-drawing the figure
         cv2.imshow("depth", img)
 
-class SVMEnvRecognition:
+class EnvRecognition:
 
     def __init__(self,bag_obj:BagReader,cfg:DictConfig ):
 
@@ -294,8 +296,6 @@ class SVMEnvRecognition:
         # init bag object
         self._bag_obj = bag_obj 
         self._dfs = self._bag_obj.get_dfs()
-        self._labels = pd.read_csv(self._bag_obj.bag_read.datafolder+"/feature_line/features.csv")['labels'].to_list() 
-        #self._labels = pd.read_csv(self._bag_obj.bag_read.datafolder+"/feature_line/features.csv")[['top_labels','mid_labels','bot_labels']].to_list() 
         self._save_run = cfg.AlgoRunner.save_run
 
         self._vid_config = cfg.AlgoRunner.video
@@ -303,10 +303,18 @@ class SVMEnvRecognition:
 
         # init detectors/estimators
         self.stair_detector = StairDetector(cfg.StairDetector)
-        self.feature_line_extractor = FeatLineExtract()
         self.clf_pipline = EnvClassifierPipe()
+        self._is_multi = isinstance(self.clf_pipline.pipe.get_params()['model'],MultiOutputClassifier)
+        ## using configuration 
         self.clf_pipline.load('multi_test.joblib')
-        #self.transformer = load('/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/models/transformer.joblib')
+
+        if self._is_multi:
+            self.feature_line_extractor = MultiFeatLineExtract()
+            self._labels = pd.read_csv(self._bag_obj.bag_read.datafolder+"/feature_line/multi_features.csv")[['top_labels','mid_labels','bot_labels']].to_list()
+
+        else:
+            self.feature_line_extractor = FeatLineExtract()
+            self._labels = pd.read_csv(self._bag_obj.bag_read.datafolder+"/feature_line/features.csv")['labels'].to_list() 
         
         if cfg.AlgoRunner.run_from is not None:
             self.start_step = cfg.AlgoRunner.run_from
@@ -359,8 +367,7 @@ class SVMEnvRecognition:
                     feature_line = dp.get_feature_line(lines,depth)
                     feature_line[0] = dp.feature_line_filter(feature_line[0])
                     stair_dist = self.stair_detector.find_stair(feature_line[0])
-                    
-                    
+
                 else:
                     feature_line = dp.get_feature_line(depth)
                     feature_line[0] = dp.feature_line_filter(feature_line[0])
@@ -371,25 +378,13 @@ class SVMEnvRecognition:
             else:
                 feature_line = dp.get_feature_line(depth)
                 feature_line[0] = dp.feature_line_filter(feature_line[0])
-                
-            #             X_test = column_transformer.transform(X_test)
-            # X_test = pd.DataFrame(data=X_test, columns=column_transformer.get_feature_names_out())
-                
-                
 
-            features_dic,ret_dic = self.feature_line_extractor.extract(feature_line[0],multi_labels=True)
+            features_dic,ret_dic = self.feature_line_extractor.extract(feature_line[0])
+
             features_input = np.array(list(features_dic.values())).reshape(1,-1)
-            #features_input = self.transformer.transform(features_input)
-            # predict_env = self.clf.predict(features_input)
-            #x = pd.DataFrame(features_dic,index=[0])
-            #numerical_cols = x.columns.to_list()
-            # Create a transformer object
-            
 
-            #x = self.transformer.transform(x)
-            
-            predict_env = self.clf_pipline.predict(features_input)
-            out_data["predict_env"] = predict_env[0]
+            predict_env = self.clf_pipline.predict(features_input)[0]
+            out_data["predict_env"] = predict_env
 
             # update buffer 
             stair_dist = ret_dic["stair"]
@@ -455,23 +450,24 @@ class SVMEnvRecognition:
         predict = out_data["predict_env"]
         label = self._labels[step]
         
+        if predict == label:
+            tcolor = (0,255,0)
+        else:
+            tcolor = (0,0,255)
+
         text = f"frame: {step},env predict: [{EnvLabel(predict[0]).name};{EnvLabel(predict[1]).name};{EnvLabel(predict[2]).name}]"
         y0, dy = 20, 15
         for i, line in enumerate(text.split(',')):
             y = y0 + i*dy
-            cv2.putText(img,line,org = (20, y ),fontFace=cv2.FONT_HERSHEY_SIMPLEX,fontScale=0.4,color=(255,0,0),thickness=1)
-        # if predict == label:
-        #     tcolor = (0,255,0)
-        # else:qqq
-        #     tcolor = (0,0,255)
+            cv2.putText(img,line,org = (20, y ),fontFace=cv2.FONT_HERSHEY_SIMPLEX,fontScale=0.4,color=tcolor,thickness=1)
+        
 
-        # if predict!=1 and out_data['stair_dist'] is not None:
+        # if predict[2]!=1 and out_data['stair_dist'] is not None:
         #     text = f"Distance to POI: {out_data['stair_dist'][0]:.3f}[meters],frame: {step},env predict: {EnvLabel(predict).name},env real: {EnvLabel(self._labels[step]).name}"
         #     y0, dy = 20, 15
         #     for i, line in enumerate(text.split(',')):
         #         y = y0 + i*dy
-        #         cv2.putText(img,line,org = (20, y ),fontFace=cv2.FONT_HERSHEY_SIMPLEX,fontScale=0.4,color=tcolor,thickness=1)
-
+        #         cv2.putText(img,line,org = (20, y ),fontFace=cv2.FONT_HERSHEY_SIMPLEX,fontScale=0.4,color=tcolor,thickness=1
         #     cv2.circle(img,out_data["feature_line"][1][out_data["stair_dist"][1]],radius=5,color=(0,0,255))
         # else:
         #     text = f"frame: {step},env predict: {EnvLabel(predict).name},env real: {EnvLabel(self._labels[step]).name}"
@@ -511,7 +507,7 @@ class SVMEnvRecognition:
 def main(cfg):
     bag_obj = BagReader()
     bag_obj.bag = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-27-18-07-14.bag'
-    algo_runner = SVMEnvRecognition(bag_obj,cfg)
+    algo_runner = EnvRecognition(bag_obj,cfg)
     #algo_runner = AnalyticEnvRecognition(bag_obj,cfg)
     algo_runner.run()
 
