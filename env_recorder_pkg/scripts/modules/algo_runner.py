@@ -304,13 +304,14 @@ class EnvRecognition:
         # init detectors/estimators
         self.stair_detector = StairDetector(cfg.StairDetector)
         self.clf_pipline = EnvClassifierPipe()
-        self._is_multi = isinstance(self.clf_pipline.pipe.get_params()['model'],MultiOutputClassifier)
         ## using configuration 
-        self.clf_pipline.load('multi_test.joblib')
+        self.clf_pipline.load('multi_best_10-01-2023_16-24-19.joblib')
+        self._is_multi = isinstance(self.clf_pipline.pipe.get_params()['model'],MultiOutputClassifier)
+        
 
         if self._is_multi:
             self.feature_line_extractor = MultiFeatLineExtract()
-            self._labels = pd.read_csv(self._bag_obj.bag_read.datafolder+"/feature_line/multi_features.csv")[['top_labels','mid_labels','bot_labels']].to_list()
+            self._labels = pd.read_csv(self._bag_obj.bag_read.datafolder+"/feature_line/multi_features.csv")[['top_labels','mid_labels','bot_labels']].to_numpy().tolist()
 
         else:
             self.feature_line_extractor = FeatLineExtract()
@@ -358,6 +359,8 @@ class EnvRecognition:
             # copy imgs and depth data
             img = in_data["depth_img"].copy()
             depth =  dp.mm2meter(in_data["depth"].copy()) ## change in release to be depend on config
+            
+
 
             # detect staires lines
             if self.stair_detector.enable:
@@ -379,11 +382,23 @@ class EnvRecognition:
                 feature_line = dp.get_feature_line(depth)
                 feature_line[0] = dp.feature_line_filter(feature_line[0])
 
-            features_dic,ret_dic = self.feature_line_extractor.extract(feature_line[0])
+            if self._is_multi:
+                features_dic,ret_dic = self.feature_line_extractor.extract(feature_line[0])
+                features_input = np.array(list(features_dic.values())).reshape(1,-1)
+                predict_env = self.clf_pipline.predict(features_input)[0].tolist()
+            else:
+                predict_env = []
+                delta = int(len(feature_line[0])/3)
+                depth_up = feature_line[0][:delta].copy()
+                depth_mid = feature_line[0][delta:2*delta].copy()
+                depth_bot = feature_line[0][2*delta:].copy()
+                for dl in [depth_up,depth_mid,depth_bot]:
+                    features_dic,ret_dic = self.feature_line_extractor.extract(dl)
+                    features_input = np.array(list(features_dic.values())).reshape(1,-1)
+                    predict = self.clf_pipline.predict(features_input)[0]
+                    predict_env.append(predict)
 
-            features_input = np.array(list(features_dic.values())).reshape(1,-1)
 
-            predict_env = self.clf_pipline.predict(features_input)[0]
             out_data["predict_env"] = predict_env
 
             # update buffer 

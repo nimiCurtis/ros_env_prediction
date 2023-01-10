@@ -295,14 +295,14 @@ def main():
     
     args = LabelParser.get_args()
     # default
-    bag_file = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-27-18-06-43.bag' 
-
+    bag_file = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-27-18-07-14.bag' 
+    label_tool = MultiLabelTool()
     if args.single_bag is not None: 
         bag_file = args.single_bag
         label_tool = LabelTool()
     elif args.multilabel_single_bag is not None:
         bag_file = args.multilabel_single_bag
-        label_tool = MultiLabelTool()
+
 
     bag_obj.bag = bag_file
     

@@ -113,30 +113,6 @@ class FeatLineExtract:
                 file_name = os.path.join(dline_dir,f"depth_line_{count}")
                 np.save(file_name,dline)
 
-            
-            features_dic,ret_dic = self.extract(dline)
-
-
-# append
-            d_mean.append(features_dic['depth_mean'])
-            d_std.append(features_dic['depth_std'])
-            d_max.append(features_dic['depth_max'])
-            d_min.append(features_dic['depth_min'])
-            d_peaks_num.append(features_dic['depth_peaks_num'])
-            d_peaks_mean.append(features_dic['depth_peaks_mean'])
-            d_peaks_idx_mean.append(features_dic['depth_peaks_idx_mean'])
-            g_mean.append(features_dic['gradient_mean'])
-            g_std.append(features_dic['gradient_std'])
-            g_max.append(features_dic['gradient_max'])
-            g_min.append(features_dic['gradient_min'])
-            g_argmax.append(features_dic['gradient_argmax'])
-            g_peaks_num.append(features_dic['gradient_peaks_num'])
-            g_peaks_mean.append(features_dic['gradient_peaks_mean'])
-            g_clpeak_idx.append(features_dic['gradient_clpeak'])
-            g_peaks_idx_mean.append(features_dic['gradient_peaks_idx_mean'])
-
-
-
             delta = int(len(dline)/3)
             depth_up = dline[:delta].copy()
             depth_mid = dline[delta:2*delta].copy()
@@ -383,7 +359,6 @@ class FeatLineExtract:
     
     def plot_feature_line(self,count,dline,ret_dic,file_path=None,save_plots=False,pltshow=False):
         
-
         fig, (ax1, ax2) = plt.subplots(2, 1)
         # make a little extra space between the subplots
         fig.subplots_adjust(hspace=0.5)
@@ -606,9 +581,18 @@ class MultiFeatLineExtract(FeatLineExtract):
                             'd_peaks_num':d_peaks_num,
                             'd_peaks_mean':d_peaks_mean,
                             'd_peaks_idx_mean':d_peaks_idx_mean,
+
+                            
+                            'g_mean':g_mean,
+                            'g_std':g_std,
+                            'g_max':g_max,
+                            'g_min':g_min,
+                            'g_argmax':g_argmax,
+                            'g_peaks_num':g_peaks_num,
                             'g_peaks_mean':g_peaks_mean,
                             'g_clpeak_idx':g_clpeak_idx,
                             'g_peaks_idx_mean':g_peaks_idx_mean,
+                            
                             # up
                             'ud_mean':ud_mean,
                             'ud_std':ud_std,
@@ -655,7 +639,7 @@ class MultiFeatLineExtract(FeatLineExtract):
 
         if os.path.exists(feature_line_dir+"/multi_features.csv"):
             df0 = pd.read_csv(feature_line_dir+"/multi_features.csv")
-            if all(item in ['top_labels','mid_labels','bot_labels'] for item in df0.keys()):
+            if all(item in df0.keys() for item in ['top_labels','mid_labels','bot_labels']):
                 df['top_labels'] = df0['top_labels']
                 df['mid_labels'] = df0['mid_labels']
                 df['bot_labels'] = df0['bot_labels']
@@ -693,9 +677,8 @@ def main():
     multi_extractor = MultiFeatLineExtract()
     args = FeatureLineParser.get_args()
     # default
-    print(args.multilabel_multiple_bags_folder)
-    bag_file = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-12-15-21-45.bag' 
-
+    bag_file = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-27-18-07-43.bag' 
+    # args.multilabel_single_bag = bag_file
     if args is not None:
 
         if args.multiple_bags_folder is not None:
@@ -715,10 +698,12 @@ def main():
         elif args.multilabel_single_bag is not None:
             bag_file = args.multilabel_single_bag
             bag_obj.bag = bag_file
-            multi_extractor.extract_stats_from_bag(bag_obj,save_dline=False,save_plots=False)
+            multi_extractor.extract_stats_from_bag(bag_obj,save_dline=False,save_plots=True)
 
         elif args.single_bag is not None:
                 bag_file = args.single_bag
+                bag_obj.bag = bag_file
+                extractor.extract_stats_from_bag(bag_obj,save_dline=True,save_plots=False)
         
     else:
         bag_obj.bag = bag_file

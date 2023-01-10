@@ -225,6 +225,7 @@ class CalssifierParser(Parser):
 def main():
     
     args = CalssifierParser.get_args()
+    args.cm = True
     if args.cs:
         train_folder = os.path.join(TRAIN_DATA_FOLDER,'train')
         test_folder = os.path.join(TEST_DATA_FOLDER,'test')
