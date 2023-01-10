@@ -5,6 +5,7 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 import pandas as pd
 from sklearn.model_selection import train_test_split
+from sklearn.utils import shuffle
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score
 from sklearn.compose import make_column_transformer
@@ -23,8 +24,8 @@ from typing import Any
 sys.path.insert(0, '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/scripts/modules')
 from bag_parser.bag_parser import Parser, is_bag_dir, is_bag_file
 
-TRAIN_DATA_FOLDER = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/models/train'
-TEST_DATA_FOLDER = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/models/test'
+DATASET = {'train':'/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/models/train',
+            'test':'/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/models/test'}
 
 class EnvClassifierPipe:
 
@@ -81,32 +82,38 @@ class EnvClassifierPipe:
         self.pipe_grid = GridSearchCV(self.clf_pipeline,pipe_params,verbose=verbose)
         
 
-
-## need to change prepare data to train
-def prepare_data_to_train(data_folder,random_state = 100,test_size=0.2):
-    df = pd.DataFrame()
-
+def import_data(data_folder,random_state = 100):
     # iteratung folder files and append to df0
+    df = pd.DataFrame()
     for filename in os.scandir(data_folder): 
         if filename.is_file() and filename.path.split('.')[-1]=='csv':
             file_name = filename.path
             df_tmp = pd.read_csv(file_name,index_col=0)
             df = df.append(df_tmp)
     
+    df = shuffle(df,random_state=random_state)
     if 'labels' in df.columns:
         X = df.drop(['labels'],axis=1)
         y = df['labels']
     else:
         X = df.drop(['top_labels','mid_labels','bot_labels'],axis=1)
         y = df[['top_labels','mid_labels','bot_labels']]
-        
-    X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=random_state,test_size=test_size)
 
+    return X, y
+
+
+## need to change prepare data to train
+def prepare_dataset(train_folder,test_folder):
+    
+    X_train,y_train = import_data(train_folder)    
+    X_test, y_test = import_data(test_folder)
+    
     return X_train, X_test, y_train, y_test
 
 def run_train_test():
     
-    X_train, X_test, y_train, y_test = prepare_data_to_train(data_folder='/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/models/test_multi_train')
+    ### will be changed in refactoring
+    X_train, X_test, y_train, y_test = prepare_dataset(data_folder='/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/models/test_multi_train')
     mrf = MultiOutputClassifier(RandomForestClassifier()) 
     rf_pipe = Pipeline([('scaler', StandardScaler()), ('model',mrf )])
     rf_env_pipe = EnvClassifierPipe({'clf_pipeline':rf_pipe})
@@ -116,9 +123,16 @@ def run_train_test():
     if name != "":
         rf_env_pipe.save(name)
 
-def run_models_comparison(train_folder,test_folder, multilabel, save=False):
+def run_models_comparison(multilabel, save=False):
     now = datetime.now()
-    X_train, X_test, y_train, y_test = prepare_data_to_train(data_folder = train_folder)
+    if multilabel:
+        train_folder = os.path.join(DATASET['train'],'train_multi')
+        test_folder = os.path.join(DATASET['test'],'test_multi')
+    else: 
+        train_folder = os.path.join(DATASET['train'],'train')
+        test_folder = os.path.join(DATASET['test'],'test')
+    
+    X_train, X_test, y_train, y_test = prepare_dataset(train_folder = train_folder, test_folder = test_folder)
     svm_model = SVC()
     if multilabel:
         knn_model = MultiOutputClassifier(KNeighborsClassifier())
@@ -227,15 +241,11 @@ def main():
     args = CalssifierParser.get_args()
     args.cm = True
     if args.cs:
-        train_folder = os.path.join(TRAIN_DATA_FOLDER,'train')
-        test_folder = os.path.join(TEST_DATA_FOLDER,'test')
-        run_models_comparison(train_folder,test_folder,multilabel=False,save=True)
+        run_models_comparison(multilabel=False,save=True)
 
     
     elif args.cm:
-        train_folder = os.path.join(TRAIN_DATA_FOLDER,'train_multi')
-        test_folder = os.path.join(TEST_DATA_FOLDER,'test_multi')
-        run_models_comparison(train_folder,test_folder,multilabel=True,save=True)
+        run_models_comparison(multilabel=True,save=True)
     
     else:
         run_train_test()
