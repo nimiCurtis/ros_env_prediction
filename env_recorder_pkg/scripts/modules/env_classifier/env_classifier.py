@@ -57,7 +57,7 @@ class EnvClassifierPipe:
         print(f"[INFO]  Pipe {pipe_file} saved.")
     
     def fit(self,X,y=None):
-        self.clf_pipeline.fit(X,y)
+        self.clf_pipeline.fit(X.values(),y.values())
 
     def predict(self,x):
         predict = self.clf_pipeline.predict(x)
@@ -108,7 +108,7 @@ def prepare_dataset(train_folder,test_folder):
     X_train,y_train = import_data(train_folder)    
     X_test, y_test = import_data(test_folder)
     
-    return X_train, X_test, y_train, y_test
+    return X_train.values, X_test.values, y_train.values, y_test.values
 
 def run_train_test():
     
@@ -118,7 +118,7 @@ def run_train_test():
     rf_pipe = Pipeline([('scaler', StandardScaler()), ('model',mrf )])
     rf_env_pipe = EnvClassifierPipe({'clf_pipeline':rf_pipe})
     rf_env_pipe.train(X_train,y_train)
-    rf_env_pipe.test(X_test,y_test)
+    rf_env_pipe.test(X_test.values(),y_test.values())
     name = input("Press enter = finish without saving pipe | File name = finish with saving pipe \nEnter your input: ")
     if name != "":
         rf_env_pipe.save(name)
@@ -139,7 +139,6 @@ def run_models_comparison(multilabel, save=False):
         knn_param_grid = {'model__estimator__n_neighbors': [3, 5, 7, 9, 11]}
         rf_model = MultiOutputClassifier(RandomForestClassifier())
         rf_param_grid = {'model__estimator__n_estimators': [10, 50, 100, 200],'model__estimator__max_depth': [None, 5, 10, 15]}
-
 
     else:
         knn_model = KNeighborsClassifier()
@@ -239,7 +238,6 @@ class CalssifierParser(Parser):
 def main():
     
     args = CalssifierParser.get_args()
-    args.cm = True
     if args.cs:
         run_models_comparison(multilabel=False,save=True)
 

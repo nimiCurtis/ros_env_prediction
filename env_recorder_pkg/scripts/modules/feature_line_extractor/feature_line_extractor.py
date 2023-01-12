@@ -175,8 +175,10 @@ class FeatLineExtract:
                 df['labels'] = df0['labels']
         
         # save to csv
-        df.to_csv(feature_line_dir+"/features.csv")
-        print(f"[INFO]  Feature line stats of {bag_obj.bag} saved.")
+        feature_line_file = feature_line_dir+"/features.csv"
+        df.to_csv(feature_line_file)
+        print(f"[INFO]  Feature line stats {feature_line_file} saved.")
+        bag_obj.update_metadata('Feature_line',feature_line_file)
 
         if save_dline:
             for img in img_dfile_list:
@@ -644,8 +646,10 @@ class MultiFeatLineExtract(FeatLineExtract):
                 df['mid_labels'] = df0['mid_labels']
                 df['bot_labels'] = df0['bot_labels']
         # save to csv
-        df.to_csv(feature_line_dir+"/multi_features.csv")
-        print(f"[INFO]  Feature line stats of {bag_obj.bag} saved.")
+        feature_line_file = feature_line_dir+"/multi_features.csv"
+        df.to_csv(feature_line_file)
+        print(f"[INFO]  Feature line stats {feature_line_file} saved.")
+        bag_obj.update_metadata('Multi_feature_line',feature_line_file)
 
 class  FeatureLineParser(Parser):
 
@@ -704,7 +708,7 @@ def main():
                 bag_file = args.single_bag
                 bag_obj.bag = bag_file
                 extractor.extract_stats_from_bag(bag_obj,save_dline=True,save_plots=False)
-        
+
     else:
         bag_obj.bag = bag_file
         extractor.extract_stats_from_bag(bag_obj,save_dline=False,save_plots=False)

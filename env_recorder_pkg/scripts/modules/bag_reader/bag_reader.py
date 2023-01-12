@@ -308,6 +308,16 @@ class BagReader():
             df_sync = pd.merge(df_sync,df[["header.stamp.secs","header.stamp.nsecs",f"np_path_{key}",f"frame_path_{key}"]],on=["header.stamp.secs","header.stamp.nsecs"],how="right")    
             
         return df_sync
+
+    def update_metadata(self,key,val):
+        
+        with open(self.metadata_file, "r+") as json_file:
+                self.MetaData = json.load(json_file)
+                self.MetaData[key] = val
+                json_file.seek(0)
+                json.dump(self.MetaData, json_file, indent=3)
+
+        
     
     
 

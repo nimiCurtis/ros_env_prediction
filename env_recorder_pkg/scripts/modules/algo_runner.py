@@ -305,7 +305,7 @@ class EnvRecognition:
         self.stair_detector = StairDetector(cfg.StairDetector)
         self.clf_pipline = EnvClassifierPipe()
         ## using configuration 
-        self.clf_pipline.load('multi_best_10-01-2023_16-24-19.joblib')
+        self.clf_pipline.load('multi_best_12-01-2023_15-48-33.joblib')
         self._is_multi = isinstance(self.clf_pipline.pipe.get_params()['model'],MultiOutputClassifier)
         
 
@@ -470,7 +470,7 @@ class EnvRecognition:
         else:
             tcolor = (0,0,255)
 
-        text = f"frame: {step},env predict: [{EnvLabel(predict[0]).name};{EnvLabel(predict[1]).name};{EnvLabel(predict[2]).name}]"
+        text = f"frame: {step},env predict: [{EnvLabel(predict[0]).name};{EnvLabel(predict[1]).name};{EnvLabel(predict[2]).name}],env real: [{EnvLabel(label[0]).name};{EnvLabel(label[1]).name};{EnvLabel(label[2]).name}]"
         y0, dy = 20, 15
         for i, line in enumerate(text.split(',')):
             y = y0 + i*dy
@@ -521,7 +521,7 @@ class EnvRecognition:
 @hydra.main(version_base=None, config_path="../../config", config_name = "algo")
 def main(cfg):
     bag_obj = BagReader()
-    bag_obj.bag = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-27-18-07-14.bag'
+    bag_obj.bag = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-12-15-24-09.bag'
     algo_runner = EnvRecognition(bag_obj,cfg)
     #algo_runner = AnalyticEnvRecognition(bag_obj,cfg)
     algo_runner.run()

@@ -15,8 +15,6 @@ class EnvLabel(Enum):
     SA = 2
     SD = 3
     
-    
-    
     W = 9
 
 
@@ -127,6 +125,8 @@ class LabelTool:
 
             df.to_csv(dataset_file)
             print("[Info]  Labels saved")
+            bag_obj.update_metadata('Labeled',True)
+
         else:
             print("[Info]  Exiting without saving labels")
 
@@ -237,17 +237,26 @@ class MultiLabelTool(LabelTool):
             labels_list = self.return_labels_as_list(labels_dict)
             labels_numpy = np.array(labels_list)
             
-            df_m = pd.read_csv(multi_dataset_file,index_col=0) 
+            if os.path.exists(multi_dataset_file):
+                df_m = pd.read_csv(multi_dataset_file,index_col=0)
+            else:
+                df_m = pd.DataFrame()
             df_m['top_labels'] = labels_numpy[:,0].tolist()
             df_m['mid_labels'] = labels_numpy[:,1].tolist()
             df_m['bot_labels'] = labels_numpy[:,2].tolist()
             df_m.to_csv(multi_dataset_file)
             print("[Info]  MultiLabels saved")
+            bag_obj.update_metadata('Labeled_multi',True)
 
+            if os.path.exists(single_dataset_file):
+                df_s = pd.read_csv(single_dataset_file,index_col=0)
+            else:
+                df_s = pd.DataFrame()
             df_s = pd.read_csv(single_dataset_file,index_col=0) 
-            df_s['labels'] = labels_numpy.reshape(1,-1)
+            df_s['labels'] = labels_numpy.reshape(-1,1)
             df_s.to_csv(single_dataset_file)
             print("[Info]  SingleLabels saved")
+            bag_obj.update_metadata('Labeled',True)
 
         else:
             print("[Info]  Exiting without saving labels")
@@ -295,7 +304,7 @@ def main():
     
     args = LabelParser.get_args()
     # default
-    bag_file = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2022-12-27-18-07-14.bag' 
+    bag_file = '/home/nimibot/catkin_ws/src/ros_env_prediction/env_recorder_pkg/bag/2023-01-10-12-11-47.bag' 
     label_tool = MultiLabelTool()
     if args.single_bag is not None: 
         bag_file = args.single_bag
